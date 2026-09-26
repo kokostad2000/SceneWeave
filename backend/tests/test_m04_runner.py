@@ -7,10 +7,13 @@
 from __future__ import annotations
 
 import asyncio
+import json
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+import httpx
 import pytest
 
 from role_theater.contracts import (
@@ -658,6 +661,83 @@ async def test_model_params_and_template_id_are_recorded(database: Database) -> 
     await env.runner.run_command(env.scene_id, request_id="s1", command=ControlCommandType.STEP)
 
     turn = env.runtime.list_turns(env.scene_id)[0]
-    assert turn["prompt_template_id"] == "role_action@m02"
+    assert turn["prompt_template_id"] == "role_action@m02.1"
     assert turn["requested_model"] == ModelParams().model
     assert turn["returned_model"] == ModelParams().model
+
+
+# --- A14 引用闭环（2026-09-26 真实联调 SCHEMA_INVALID 的回归） -------------------
+
+
+class _ReplyingTransport(httpx.AsyncBaseTransport):
+    """像真实模型那样读提示词：第一条发言不作引用，之后引用最近一条发言。
+
+    ``alias`` 决定回写形式——``"id"`` 是逐字复制的消息 ID，``"seq"`` 是真实联调
+    里模型实际回的 ``#序号`` 整数，其余按模板生成 ``#序号`` 的文本写法。
+    """
+
+    def __init__(self, alias: str = "id") -> None:
+        self.alias = alias
+        self.prompts: list[str] = []
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content.decode("utf-8"))
+        prompt = payload["messages"][-1]["content"]
+        self.prompts.append(prompt)
+
+        visible = re.findall(r"\[#(\d+) \| ([^\]]+)\]", prompt)
+        if not visible:
+            content = json.dumps(
+                {"action": "SPEAK", "text": "我先说一句。", "reply_to_message_id": None}
+            )
+        else:
+            seq, message_id = visible[-1]
+            if self.alias == "id":
+                reference: object = message_id
+            elif self.alias == "seq":
+                reference = int(seq)
+            else:
+                reference = self.alias.format(seq=seq)
+            content = json.dumps(
+                {"action": "SPEAK", "text": "回应一下。", "reply_to_message_id": reference}
+            )
+
+        return httpx.Response(
+            200,
+            json={
+                "id": "req-reply",
+                "model": "deepseek-flash-2026-09-10",
+                "choices": [
+                    {"index": 0, "finish_reason": "stop", "message": {"role": "assistant", "content": content}}
+                ],
+                "usage": {"prompt_tokens": 120, "completion_tokens": 18},
+            },
+        )
+
+
+@pytest.mark.parametrize("alias", ["id", "seq", "#{seq}", "[#{seq}]"])
+async def test_reply_reference_taken_from_the_prompt_is_committed(
+    database: Database, alias: str
+) -> None:
+    """提示词给出的引用标识必须真的可用：模型回 ID 或回序号都要成功落盘。"""
+
+    transport = _ReplyingTransport(alias)
+    env = build_env(
+        database, port=DeepSeekModelClient(api_key="placeholder-key", transport=transport)
+    )
+
+    await env.runner.run_command(env.scene_id, request_id="s1", command=ControlCommandType.STEP)
+    await env.runner.run_command(env.scene_id, request_id="s2", command=ControlCommandType.STEP)
+
+    turns = env.runtime.list_turns(env.scene_id)
+    assert [turn["status"] for turn in turns] == [
+        TurnStatus.SUCCEEDED.value,
+        TurnStatus.SUCCEEDED.value,
+    ], [turn["failure_detail"] for turn in turns]
+
+    messages = env.runtime.list_messages(env.scene_id)
+    assert len(messages) == 2
+    # 前提：第二次调用的提示词确实把第一条发言的 ID 摆在了模型眼前。
+    assert messages[0].message_id in transport.prompts[1]
+    # 结论：模型照提示词写出的引用真的落盘了。
+    assert messages[1].reply_to_message_id == messages[0].message_id

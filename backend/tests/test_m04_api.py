@@ -285,7 +285,7 @@ def test_viewpoint_matches_the_caller_context_and_hides_other_private_data(
 
     assert viewpoint["agent_id"] == target["agent_id"]
     assert viewpoint["agent_name"] == target["name"]
-    assert viewpoint["prompt_template_id"] == "role_action@m02"
+    assert viewpoint["prompt_template_id"] == "role_action@m02.1"
     assert "朋友临时取消了聚会" in viewpoint["prompt"], "本人私有背景在内"
     assert "今天工作很累" not in viewpoint["prompt"], "他人私有背景不得出现"
     assert viewpoint["public_roster"] == ["安然", "许川", "陈禾"]
@@ -329,7 +329,7 @@ def test_summary_reports_actual_call_counts(api_client: TestClient) -> None:
     summary = api_client.get(f"/api/scenes/{scene_id}/summary").json()
 
     assert summary["role_requests_used"] == 2
-    assert summary["max_role_requests"] == 24
+    assert summary["max_role_requests"] == 200
     assert summary["succeeded"] == 2
     assert summary["failed"] == 0
     assert summary["unknown"] == 0

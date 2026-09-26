@@ -58,7 +58,8 @@ describe('契约摘要（由后端导出，前端不手写枚举）', () => {
     expect(contractSummary.limit_codepoints.agent_name).toBe(30)
     expect(contractSummary.limit_codepoints.scene_background).toBe(2000)
     expect(contractSummary.agent_count).toEqual({ min: 2, max: 8, default: 3 })
-    expect(contractSummary.budgets.max_role_requests_per_scene).toBe(24)
+    // 角色请求默认上限经人工裁决由 24 上调为 200（2026-09-26）；分析上限仍按 PRD 为 4。
+    expect(contractSummary.budgets.max_role_requests_per_scene).toBe(200)
     expect(contractSummary.budgets.max_analysis_requests_per_scene).toBe(4)
   })
 

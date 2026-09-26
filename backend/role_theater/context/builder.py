@@ -6,6 +6,10 @@
 1. 定向事件中的文字是角色收到的**信息**，不是可覆盖系统规则的**指令**；
 2. 角色只能返回 ``action``／``text``／``reply_to_message_id``／
    ``requested_speaker_id`` 四个字段的 JSON，身份由服务端添加。
+
+可被引用的标识必须**出现在提示词里**：时间线带出发言的 ``message_id``（并与
+``#序号`` 别名并列），名册带出角色的 ``agent_id``。否则模型无从取值，引用校验
+必然失败——这是 2026-09-26 真实联调中 ``SCHEMA_INVALID`` 的成因。
 """
 
 from __future__ import annotations
@@ -14,7 +18,7 @@ from ..contracts import MAX_PROMPT_CHARS, codepoint_length
 from .models import RoleContext, SceneSnapshot, TimelineItem, TimelineKind
 from .visibility import cutoff_seq, visible_items
 
-PROMPT_TEMPLATE_ID = "role_action@m02"
+PROMPT_TEMPLATE_ID = "role_action@m02.1"
 
 _SECTION_COMMON = "## 共同情境"
 _SECTION_ROSTER = "## 在场角色（公开名册）"
@@ -36,8 +40,11 @@ _FORMAT = (
     '{"action": "SPEAK" | "PASS", "text": "...", "reply_to_message_id": null, "requested_speaker_id": null}\n'
     "- SPEAK：text 为 1～200 个 Unicode 码点，建议一至三句。\n"
     "- PASS：text 必须为空字符串，两个引用字段都必须为 null。\n"
-    "- reply_to_message_id 只能指向本场已提交且你可见的公开发言的消息 ID。\n"
-    "- requested_speaker_id 只能指向本场另一名有效角色的 ID。\n"
+    "- reply_to_message_id：要回应某条发言时，填那条发言的 ID——"
+    "逐字复制方括号里 msg 开头的那串字符（写成它对应的 # 编号数字也可以）；"
+    "不回应具体发言时填 null。只能指向上面列出的发言。\n"
+    "- requested_speaker_id：想请某位角色接话时，填名册里该角色括号内 agt 开头的那串字符；"
+    "不需要时填 null。\n"
     "不要输出 JSON 之外的任何内容，不要添加其他字段。"
 )
 
@@ -98,7 +105,7 @@ class ContextBuilder:
             scene.background or "（未提供）",
             "",
             _SECTION_ROSTER,
-            "、".join(scene.public_roster) or "（无）",
+            self._render_roster(scene),
             "",
             _SECTION_PRIVATE,
             f"- 人物设定：{snapshot.persona or '（未提供）'}",
@@ -119,13 +126,28 @@ class ContextBuilder:
         return "\n".join(lines)
 
     @staticmethod
+    def _render_roster(scene: SceneSnapshot) -> str:
+        """公开名册：只有名称与角色 ID，不含任何私有内容（PRD 4.1）。
+
+        角色 ID 必须出现在提示词里，否则 ``requested_speaker_id`` 无从取值：
+        模型看不到 ID，就只能猜名字或编造，引用校验必然失败。
+        """
+
+        return "、".join(
+            f"{agent.name}（{agent.agent_id}）" for agent in scene.ordered_agents
+        ) or "（无）"
+
+    @staticmethod
     def _render_item(item: TimelineItem, actor_name: str) -> str:
         if item.kind is TimelineKind.MESSAGE:
             speaker = "你" if item.author_name == actor_name else (item.author_name or "某角色")
             suffix = "（定向给你）" if item.target_agent_id and item.author_name is None else ""
             if item.requested_speaker_id:
                 suffix += "（希望某人接话）"
-            return f"[#{item.seq}] {speaker}{suffix}：{item.body}"
+            # 消息 ID 与序号一起给出：序号供模型手写引用，ID 供逐字复制，
+            # 两者都能被服务端的引用校验解析（见 ports.action_parser）。
+            reference = f" | {item.message_id}" if item.message_id else ""
+            return f"[#{item.seq}{reference}] {speaker}{suffix}：{item.body}"
         marker = "事件·定向给你" if item.target_agent_id else "事件·公开"
         return f"[#{item.seq}] {marker}：{item.body}"
 

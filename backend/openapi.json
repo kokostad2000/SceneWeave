@@ -958,7 +958,7 @@
             "type": "integer"
           },
           "max_role_requests": {
-            "default": 24,
+            "default": 200,
             "maximum": 200.0,
             "minimum": 1.0,
             "title": "Max Role Requests",
@@ -1965,7 +1965,7 @@
       },
       "ReferenceScope": {
         "additionalProperties": false,
-        "description": "本次调用允许出现的引用范围（PRD 4.2）。\n\n由 M04 从\"本场已提交且该角色可见的公开发言\"与\"本场其他有效角色\"构建；\n``reply_to_message_id`` 与 ``requested_speaker_id`` 只能落在其中。",
+        "description": "本次调用允许出现的引用范围（PRD 4.2）。\n\n由 M04 从\"本场已提交且该角色可见的公开发言\"与\"本场其他有效角色\"构建；\n``reply_to_message_id`` 与 ``requested_speaker_id`` 只能落在其中。\n\n``allowed_message_seqs`` 是**同一集合**的序号别名视图：提示词用\n``[#序号]`` 展示发言，模型因此常把序号当消息 ID 回传。别名解析按这张表\n归一化成真实消息 ID（见 ``ports.action_parser``），不放宽任何校验——序号\n不在表内仍然是非法引用。",
         "properties": {
           "actor_id": {
             "maxLength": 64,
@@ -1981,6 +1981,15 @@
             },
             "title": "Allowed Message Ids",
             "type": "array"
+          },
+          "allowed_message_seqs": {
+            "additionalProperties": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Allowed Message Seqs",
+            "type": "object"
           },
           "allowed_speaker_ids": {
             "items": {
@@ -2115,7 +2124,7 @@
             "type": "integer"
           },
           "max_role_requests": {
-            "default": 24,
+            "default": 200,
             "minimum": 0.0,
             "title": "Max Role Requests",
             "type": "integer"

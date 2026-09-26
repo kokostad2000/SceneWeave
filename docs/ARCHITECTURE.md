@@ -85,6 +85,8 @@ SQLite（事实来源：模板、快照、事件、行动、请求结果、分�
 
 引用校验：`reply_to_message_id` 为空，或指向本场**已提交**且该角色**可见**的公开发言；`requested_speaker_id` 为空，或为本场另一名有效角色。
 
+**可引用标识必须先出现在提示词里**：ContextBuilder 的时间线条目带出发言的 `message_id` 并与 `#序号` 别名并列（`[#3 | msg_…] 陈禾：…`），名册带出角色的 `agent_id`（`陈禾（agt_…）`）。`ReferenceScope` 同时携带同一批发言的 `allowed_message_ids` 与 `allowed_message_seqs`，因此模型回消息 ID 或回序号都能被确定性解析；序号不在范围内依旧是非法引用。这是**查表换算**，不是静默修剪、自动广播或追加修复调用（2026-09-26 真实联调因提示词不暴露消息 ID 导致 4/8 次调用 `SCHEMA_INVALID`，见 `state/reports/FIX-reply-reference.md`）。
+
 服务端在保存前必须校验：枚举、字段完整性、额外字段、文本长度、角色与消息引用。空 content、`finish_reason=length`、格式异常、非法引用、过长正文一律**失败**，不静默修剪、不自动广播、不追加修复调用。
 
 ### 3.3 事件
@@ -103,7 +105,7 @@ SQLite（事实来源：模板、快照、事件、行动、请求结果、分�
 |---|---|---|
 | `RoleCursor` | `scene_id`, `agent_id`, `processed_seq`, `startup_opportunity_consumed`, `last_action_at` | 每角色已处理位置；仅成功行动推进 |
 | `SchedulerDirective` | `actor_id`, `reason`, `based_on_seq` | 调度结果可复核；每场同一时刻**只有一个**角色请求在执行 |
-| `Budget` | `max_role_requests`（默认 24）, `max_analysis_requests`（默认 4） | 两者独立计数，各自最多一个在途请求；发送即占用，失败／超时／重试不退款 |
+| `Budget` | `max_role_requests`（默认 **200**，人工裁决 2026-09-26 由 24 上调）, `max_analysis_requests`（默认 4） | 两者独立计数，各自最多一个在途请求；发送即占用，失败／超时／重试不退款。创建会话时可在 [1, 200] 内下调，开始后锁定；单步／自动运行的控制方式不变 |
 | `Usage` | `input_tokens`, `output_tokens`, `cached_tokens`, `unknown` | 以服务端返回为准；**缺失记为 unknown，不是 0**；本期不承诺货币费用 |
 
 ### 3.5 端口请求／响应

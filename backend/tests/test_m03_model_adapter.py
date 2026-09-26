@@ -12,6 +12,7 @@ import httpx
 import pytest
 
 from role_theater.contracts import (
+    ActionDraft,
     ActionType,
     ModelActionRequest,
     ModelFailureKind,
@@ -468,13 +469,71 @@ def test_requested_speaker_must_be_another_valid_role() -> None:
 
 
 def test_reference_validation_skipped_without_scope() -> None:
-    from role_theater.contracts import ActionDraft
-
     draft = ActionDraft.model_validate(
         {"action": "SPEAK", "text": "好。", "reply_to_message_id": "msg-anything"}
     )
 
     assert validate_references(draft, None) is None
+
+
+# --- A6b 序号别名解析（真实联调回归） ------------------------------------------
+
+
+def _seq_scope() -> ReferenceScope:
+    """模拟 M04 构建的范围：消息 ID 与序号别名指向同一批发言。"""
+
+    return ReferenceScope(
+        actor_id="agt-xu",
+        allowed_message_ids=["msg_a1", "msg_b2"],
+        allowed_message_seqs={1: "msg_a1", 2: "msg_b2"},
+        allowed_speaker_ids=["agt-an"],
+    )
+
+
+@pytest.mark.parametrize("alias", [1, "1", "#1", "[#1]", " 1 "])
+def test_seq_alias_resolves_to_the_real_message_id(alias: object) -> None:
+    """模型把提示词里的 ``[#1]`` 回成序号时，必须解析成真实消息 ID 而不是报错。"""
+
+    payload = {"action": "SPEAK", "text": "回应一下。", "reply_to_message_id": alias}
+    outcome = parse_action_content(json.dumps(payload), scope=_seq_scope())
+
+    assert isinstance(outcome, ActionDraft)
+    assert outcome.reply_to_message_id == "msg_a1"
+
+
+def test_seq_alias_out_of_range_is_an_invalid_reference_not_a_type_error() -> None:
+    """序号越界要说清是引用非法，而不是笼统的字段类型错误。"""
+
+    payload = {"action": "SPEAK", "text": "回应一下。", "reply_to_message_id": 99}
+    outcome = parse_action_content(json.dumps(payload), scope=_seq_scope())
+
+    assert outcome.kind is ModelFailureKind.REFERENCE_INVALID  # type: ignore[union-attr]
+
+
+def test_real_message_id_still_wins_over_alias_lookup() -> None:
+    """已经给出真实 ID 的值不做任何改写。"""
+
+    payload = {"action": "SPEAK", "text": "回应一下。", "reply_to_message_id": "msg_b2"}
+    outcome = parse_action_content(json.dumps(payload), scope=_seq_scope())
+
+    assert outcome.reply_to_message_id == "msg_b2"  # type: ignore[union-attr]
+
+
+def test_seq_alias_without_a_seq_table_keeps_the_strict_type_error() -> None:
+    """没有序号表（例如旧调用方）时不得放宽：int 依旧按字段类型失败。"""
+
+    scope = ReferenceScope(actor_id="agt-xu", allowed_message_ids=["msg_a1"])
+    payload = {"action": "SPEAK", "text": "回应一下。", "reply_to_message_id": 1}
+    outcome = parse_action_content(json.dumps(payload), scope=scope)
+
+    assert outcome.kind is ModelFailureKind.SCHEMA_INVALID  # type: ignore[union-attr]
+
+
+def test_boolean_is_never_treated_as_a_seq_alias() -> None:
+    payload = {"action": "SPEAK", "text": "回应一下。", "reply_to_message_id": True}
+    outcome = parse_action_content(json.dumps(payload), scope=_seq_scope())
+
+    assert outcome.kind is ModelFailureKind.SCHEMA_INVALID  # type: ignore[union-attr]
 
 
 async def test_client_applies_reference_scope_from_request() -> None:

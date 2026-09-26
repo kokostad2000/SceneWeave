@@ -186,6 +186,6 @@ class AgentRenameRequest(BaseModel):
     name: AgentName
 
 
-# 预算默认值再次导出，便于前端展示“默认 24／4”（PRD 5.3）。
+# 预算默认值再次导出，便于前端展示“默认 200／4”（PRD 5.3；默认值经人工裁决调整）。
 DEFAULT_ROLE_REQUEST_LIMIT = MAX_ROLE_REQUESTS_PER_SCENE
 DEFAULT_ANALYSIS_REQUEST_LIMIT = MAX_ANALYSIS_REQUESTS_PER_SCENE

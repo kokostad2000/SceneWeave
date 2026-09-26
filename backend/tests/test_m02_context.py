@@ -289,9 +289,58 @@ def test_timeline_item_cannot_carry_non_story_payload() -> None:
         "author_name",
         "visibility",
         "target_agent_id",
+        "message_id",
         "reply_to_message_id",
         "requested_speaker_id",
     }
+
+
+# --- A12 可引用标识必须出现在提示词里 ------------------------------------------
+
+
+def test_prompt_exposes_the_message_id_of_every_visible_message() -> None:
+    """回归：引用目标必须先可见，否则 reply_to_message_id 永远无法合法。"""
+
+    timeline = (
+        _message(1, "agt-an", "安然", "今晚一起吃饭吗？"),
+        _message(2, "agt-xu", "许川", "我想先休息。"),
+    )
+    scene = _scene(timeline)
+    prompt = ContextBuilder().build(scene, "agt-an").prompt
+
+    for item in scene.timeline:
+        assert item.message_id is not None
+        assert item.message_id in prompt, item.seq
+        # 序号与消息 ID 并列，模型两种写法都能对上引用范围。
+        assert f"[#{item.seq} | {item.message_id}]" in prompt
+
+
+def test_prompt_exposes_role_ids_so_speaker_requests_are_reachable() -> None:
+    scene = _scene()
+    prompt = ContextBuilder().build(scene, "agt-an").prompt
+
+    for agent in scene.ordered_agents:
+        assert f"{agent.name}（{agent.agent_id}）" in prompt
+
+
+def test_message_ids_of_invisible_items_never_leak() -> None:
+    """消息 ID 属于剧情事实，但只能随该角色可见的发言一起出现。"""
+
+    timeline = (
+        _message(1, "agt-xu", "许川", "我先去洗个澡。"),
+        _event(2, "只给陈禾的提示。", EventVisibility.TARGETED, "agt-ch"),
+    )
+    scene = _scene(timeline)
+
+    an_prompt = ContextBuilder().build(scene, "agt-an").prompt
+    ch_prompt = ContextBuilder().build(scene, "agt-ch").prompt
+
+    assert "msg-1" in an_prompt
+    assert "msg-1" in ch_prompt
+    assert "只给陈禾的提示" in ch_prompt
+    assert "只给陈禾的提示" not in an_prompt
+    # 事件没有消息 ID，也不得凭空捏造一个可引用的 ID。
+    assert "evt-2" not in ch_prompt
 
 
 # --- A11 超限不截断 ------------------------------------------------------------

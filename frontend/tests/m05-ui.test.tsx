@@ -477,4 +477,59 @@ describe('配置页', () => {
       expect(screen.getByText('名称（2／30 码点）')).toBeInTheDocument()
     })
   })
+
+  it('预算默认值取自后端契约（角色请求 200、分析 4），创建时原样提交', async () => {
+    // 人工裁决 2026-09-26：角色请求上限默认由 24 上调为 200，分析仍为 4。
+    // 前端不得手写这两个数字，默认值必须来自 contract-summary.json。
+    const calls: { path: string; method: string; body: Record<string, unknown> | null }[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = new URL(String(input), 'http://localhost').pathname
+        const method = init?.method ?? 'GET'
+        calls.push({
+          path,
+          method,
+          body: init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : null,
+        })
+        if (path === '/api/templates') return jsonResponse({ templates: [] })
+        if (path === '/api/scenes/presets') return jsonResponse({ presets: [] })
+        if (path === '/api/scenes' && method === 'GET') return jsonResponse({ scenes: [] })
+        if (path === '/api/scenes' && method === 'POST') {
+          return jsonResponse({
+            scene: {
+              scene_id: 'scn-x',
+              title: '三个室友的客厅',
+              background: 'b',
+              status: 'READY',
+              pause_reason: null,
+              budget: { max_role_requests: 200, max_analysis_requests: 4, locked_at: null },
+              schema_version: 1,
+              created_at: '2026-09-26T20:00:00+00:00',
+              started_at: null,
+              ended_at: null,
+            },
+            agents: [],
+            locked: false,
+          })
+        }
+        return jsonResponse({ error: 'not_found', detail: path }, 404)
+      }),
+    )
+
+    const user = userEvent.setup()
+    render(<ConfigView onOpenScene={() => undefined} />)
+
+    expect(await screen.findByLabelText('角色请求上限')).toHaveValue(200)
+    expect(screen.getByLabelText('分析请求上限')).toHaveValue(4)
+
+    await user.click(screen.getByRole('button', { name: '创建会话' }))
+
+    await waitFor(() => {
+      expect(calls.some((call) => call.method === 'POST' && call.path === '/api/scenes')).toBe(true)
+    })
+    const created = calls.find((call) => call.method === 'POST' && call.path === '/api/scenes')
+    expect(created?.body?.max_role_requests).toBe(200)
+    expect(created?.body?.max_analysis_requests).toBe(4)
+  })
 })

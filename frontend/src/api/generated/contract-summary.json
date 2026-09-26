@@ -8,7 +8,7 @@
   "app_version": "0.1.0",
   "budgets": {
     "max_analysis_requests_per_scene": 4,
-    "max_role_requests_per_scene": 24
+    "max_role_requests_per_scene": 200
   },
   "contract_version": "m00.1",
   "enums": [

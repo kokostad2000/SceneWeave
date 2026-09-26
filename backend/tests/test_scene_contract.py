@@ -134,7 +134,8 @@ def test_scene_agent_display_name_is_bounded() -> None:
 
 def test_budget_defaults_and_bounds() -> None:
     budget = Budget()
-    assert budget.max_role_requests == 24
+    # 人工裁决 2026-09-26：角色请求默认上限由 24 上调为 200（分析仍为 4）。
+    assert budget.max_role_requests == 200
     assert budget.max_analysis_requests == 4
     assert budget.locked_at is None
 

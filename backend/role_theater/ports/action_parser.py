@@ -3,11 +3,16 @@
 纯函数：输入是模型返回的 `content` 文本与允许的引用范围，输出是
 `ActionDraft` 或结构化 `ModelFailure`。**不做任何静默修剪、不自动广播、不追加
 修复调用**——空 content、截断、非法 JSON、字段非法、引用非法一律失败。
+
+唯一的归一化是**引用别名解析**：提示词用 ``[#序号]`` 展示发言，模型可能直接回
+序号，因此 ``ReferenceScope.allowed_message_seqs`` 里的序号会被确定性地换算成
+对应的真实消息 ID。这是查表换算，不是修剪或修复调用：序号不在表内依旧是非法引用。
 """
 
 from __future__ import annotations
 
 import json
+import re
 
 from ..contracts import (
     ActionDraft,
@@ -19,6 +24,9 @@ from pydantic import ValidationError
 
 #: 只允许这四个字段（PRD 4.2：模型只返回 action／text／两个引用）。
 ALLOWED_FIELDS = frozenset({"action", "text", "reply_to_message_id", "requested_speaker_id"})
+
+#: 提示词里的发言编号写法：``3``／``"3"``／``"#3"``／``"[#3]"`` 都指同一条发言。
+_SEQ_ALIAS = re.compile(r"^\[?#?(\d+)\]?$")
 
 #: 官方文档中表示“服务端未正常完成”的 ``finish_reason`` 取值及其失败分类。
 #: 来源：DeepSeek Chat Completions API 文档（见 docs/SOURCES.md）。
@@ -69,6 +77,38 @@ def validate_references(draft: ActionDraft, scope: ReferenceScope | None) -> Mod
             )
 
     return None
+
+
+def resolve_message_alias(value: object, scope: ReferenceScope | None) -> object:
+    """把发言序号别名换算成真实消息 ID（PRD 4.2）。
+
+    接受 ``3``／``"3"``／``"#3"``／``"[#3]"``——都是提示词 ``[#3]`` 的自然写法。
+    换算只在 ``scope`` 给出序号表时发生；换算不了的值原样返回，交给后续校验给出
+    明确的失败分类（无法解析的类型仍是 ``SCHEMA_INVALID``，序号越界是
+    ``REFERENCE_INVALID``）。
+    """
+
+    if scope is None or not scope.allowed_message_seqs:
+        return value
+
+    seq: int | None = None
+    if isinstance(value, bool):  # bool 是 int 子类，但真／假不是序号。
+        return value
+    if isinstance(value, int):
+        seq = value
+    elif isinstance(value, str):
+        matched = _SEQ_ALIAS.match(value.strip())
+        if matched:
+            seq = int(matched.group(1))
+
+    if seq is None:
+        return value
+
+    resolved = scope.allowed_message_seqs.get(seq)
+    if resolved is not None:
+        return resolved
+    # 序号越界：转成字符串，让引用校验而不是字段类型来报告这个错误。
+    return str(seq)
 
 
 def parse_action_content(
@@ -124,6 +164,13 @@ def parse_action_content(
             detail=f"缺少必需字段：{', '.join(sorted(missing))}",
         )
 
+    # 引用别名归一化：``reply_to_message_id`` 写序号时换算成真实消息 ID。
+    # 其余字段一律不动，避免任何“顺手修好”的宽松行为。
+    if "reply_to_message_id" in payload:
+        resolved = resolve_message_alias(payload["reply_to_message_id"], scope)
+        if resolved is not payload["reply_to_message_id"]:
+            payload = {**payload, "reply_to_message_id": resolved}
+
     try:
         draft = ActionDraft.model_validate(payload)
     except ValidationError as exc:
@@ -142,5 +189,6 @@ __all__ = [
     "FINISH_REASON_FAILURES",
     "NORMAL_FINISH_REASONS",
     "parse_action_content",
+    "resolve_message_alias",
     "validate_references",
 ]

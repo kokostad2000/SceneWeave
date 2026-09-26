@@ -66,7 +66,7 @@ def test_contracts_summary_limits_and_ports(keyless_client: TestClient) -> None:
     assert body["limit_codepoints"] == CONTRACT_LIMIT_CODEPOINTS
     assert body["agent_count"] == {"min": 2, "max": 8, "default": 3}
     assert body["budgets"] == {
-        "max_role_requests_per_scene": 24,
+        "max_role_requests_per_scene": 200,
         "max_analysis_requests_per_scene": 4,
     }
     assert body["ports"] == list(EXTERNAL_PORTS)

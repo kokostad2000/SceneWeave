@@ -228,7 +228,7 @@ def test_budget_defaults_match_the_contract(api_client: TestClient) -> None:
     detail = create_scene(api_client, make_templates(api_client, ["安然", "许川"]))
     budget = detail["scene"]["budget"]
 
-    assert budget["max_role_requests"] == 24
+    assert budget["max_role_requests"] == 200
     assert budget["max_analysis_requests"] == 4
 
 

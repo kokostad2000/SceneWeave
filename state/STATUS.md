@@ -2,7 +2,7 @@
 
 需求来源：`PRD.md`（2026-09-26 核对版，22117 字节，211 行）
 开发规则：`AGENTS.md`（一次只开发一个模块；核验由开发代理执行，见第 5.1 节）
-最近更新：**M00–M07 全部已验收**；已增加本地模型提供方（`SCENEWEAVE_MODEL_PROVIDER=local`）；B6 按人工裁决补齐为三个预置场景；接入 DeepSeek 真实 API 的契约已按官方文档核对（U-M03-1 关闭），真实调用仍待密钥。交付结论：**未达到「可试用」**（缺真实模型验收、部署与人工观察，见 `docs/RELEASE.md` §7）。证据见 `state/reports/M00.md`–`M07.md`
+最近更新：**M00–M07 全部已验收**；已增加本地模型提供方（`SCENEWEAVE_MODEL_PROVIDER=local`）；B6 按人工裁决补齐为三个预置场景；接入 DeepSeek 真实 API 的契约已按官方文档核对（U-M03-1 关闭）；**2026-09-26 人工发起的一场真实会话（`deepseek-flash`）8 次调用中 4 次 `SCHEMA_INVALID`（提示词不暴露消息 ID），已按人工授权修复**（见 `state/reports/FIX-reply-reference.md`），离线回归全绿，**重启后 2026-09-27 00:21 的真实运行 22 次调用全部成功、其中 21 条消息带 `reply_to_message_id`，修复已在真实模型上验证通过**；**角色请求上限默认值按人工裁决由 24 上调为 200**（见 `state/reports/CHANGE-role-request-limit.md`，PRD 原文未改），控制方式不变；**2026-09-27 00:25 已按人工要求重启后端，两项改动实际生效**（旧进程无 `--reload`，重启前线上仍返回 24／4 与 `role_action@m02`，重启后为 200／4 与 `role_action@m02.1`；见 `state/reports/FIX-reply-reference.md` §8）。交付结论：**未达到「可试用」**（缺新提示词的真实模型验收、部署与人工观察，见 `docs/RELEASE.md` §7）。证据见 `state/reports/M00.md`–`M07.md` 与 `state/reports/` 下的 FIX／CHANGE 报告
 
 ## 0. 当前基线事实
 
@@ -15,11 +15,13 @@
 | Python | 3.12.14（首版验证环境） |
 | Node.js / pnpm | v24.2.0 / 11.19.0 |
 | 已完成模块 | M00 工程与契约、M01 角色与场景、M02 可见性与调度、M03 模型适配、M04 运行与事件、M05 操作界面、M06 行为分析、M07 集成与交付 |
-| 测试结果 | 后端 `pytest` **407 passed**（退出码 0）；前端 `vitest` **48 passed**（退出码 0）；`tsc --noEmit` 与 `vite build` 均退出码 0 |
+| 测试结果 | 后端 `pytest` **423 passed**（退出码 0，2026-09-26 引用修复后；修复前 407）；前端 `vitest` **49 passed**（退出码 0，新增 1 项预算默认值用例）；`tsc --noEmit` 与 `vite build` 均退出码 0 |
 | 无密钥验证 | 未设置任何密钥时 `GET /api/health` 返回 HTTP 200；M01 全部接口在无密钥下工作 |
+| 真实调用记录 | ① 2026-09-26 23:42–23:47（UTC+8）`deepseek-flash` 会话：8 次调用，4 次 `SCHEMA_INVALID`（提示词不暴露消息 ID）。② 2026-09-27 00:21–00:22 **重启后**同一模型 22 次调用 **全部成功**，22 条消息中 **21 条带 `reply_to_message_id`**、2 条带 `requested_speaker_id` → 引用修复在真实模型上验证通过。数据源 `backend/sceneweave.db` → `scene_turns`／`messages`，详见 `state/reports/FIX-reply-reference.md` §8–§9 |
 | 契约产物 | 连续两次导出 sha256 一致（可复现）；后端测试强制检测漂移 |
-| 出站网络 | 后端测试在阻断出站 DNS／连接后仍 407 passed |
-| 证据 | `state/reports/M00.md`–`M07.md`；硬验收 `docs/ACCEPTANCE.md`；发布资料 `docs/RELEASE.md` |
+| 出站网络 | 后端测试在阻断出站 DNS／连接后仍 **423 passed**（`PYTHONPATH=/private/tmp .venv/bin/python -m pytest -p no_net_plugin`，证明无真实外部调用） |
+| 预算默认值 | 角色请求上限默认 **200**（人工裁决 2026-09-26 由 24 上调），分析请求上限默认 4；可在 [1, 200] 内创建时下调，开始后锁定 |
+| 证据 | `state/reports/M00.md`–`M07.md`；引用缺陷修复 `state/reports/FIX-reply-reference.md`（含真实调用记录与反例检查）；预算默认值变更 `state/reports/CHANGE-role-request-limit.md`；硬验收 `docs/ACCEPTANCE.md`；发布资料 `docs/RELEASE.md` |
 
 PRD 引用但**当前不存在**、属于后续产物的文件（不得当作已读取依据）：
 
@@ -74,3 +76,4 @@ PRD 引用但**当前不存在**、属于后续产物的文件（不得当作已
 | B4 | `docs/ACCEPTANCE.md` 缺失 | **已由 M07 建立**（14 项硬验收逐条对照） | 已关闭 |
 | B6 | PRD 第 10 节要求「预置三个场景各运行三次」，第 3.1 节只定义了 1 个预置场景 | **人工裁决：补两个预置场景**（不改 PRD 原文）。已新增 `convenience_store`（深夜便利店的三个顾客）与 `campsite`（周末露营地的三个人），各 3 名角色，角色与情境为**项目自撰内容**，未声称出自 PRD；撰写遵守 PRD 3.1 的约束（不预设争吵／和解／最终决定） | **已处置（人工决议 2026-09-26）** |
 | B5 | 远端 CI 未接入 | M00 以本地脚本 + 契约漂移检测落地「CI 基线」；是否接入远端 CI 由 M07 决定 | 未验证（不阻塞） |
+| B7 | PRD 5.3 写的预算默认值是「角色请求 24／分析 4」，人工要求「给 200 轮对话的限额」 | **人工裁决：角色请求默认上限上调为 200**（分析仍 4，可配置范围 [1, 200] 与控制方式不变）。**不改 PRD 原文**；口径按「一次角色请求 = 一轮」落实，若「一轮」指所有角色各说一次需改为角色数 × 200，已登记待确认。记录见 `state/reports/CHANGE-role-request-limit.md` | **已处置（人工决议 2026-09-26；口径待确认）** |

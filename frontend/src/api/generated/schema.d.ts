@@ -871,7 +871,7 @@ export interface components {
             max_analysis_requests: number;
             /**
              * Max Role Requests
-             * @default 24
+             * @default 200
              */
             max_role_requests: number;
         };
@@ -1394,12 +1394,21 @@ export interface components {
          *
          *     由 M04 从"本场已提交且该角色可见的公开发言"与"本场其他有效角色"构建；
          *     ``reply_to_message_id`` 与 ``requested_speaker_id`` 只能落在其中。
+         *
+         *     ``allowed_message_seqs`` 是**同一集合**的序号别名视图：提示词用
+         *     ``[#序号]`` 展示发言，模型因此常把序号当消息 ID 回传。别名解析按这张表
+         *     归一化成真实消息 ID（见 ``ports.action_parser``），不放宽任何校验——序号
+         *     不在表内仍然是非法引用。
          */
         ReferenceScope: {
             /** Actor Id */
             actor_id: string;
             /** Allowed Message Ids */
             allowed_message_ids?: string[];
+            /** Allowed Message Seqs */
+            allowed_message_seqs?: {
+                [key: string]: string;
+            };
             /** Allowed Speaker Ids */
             allowed_speaker_ids?: string[];
         };
@@ -1467,7 +1476,7 @@ export interface components {
             max_analysis_requests: number;
             /**
              * Max Role Requests
-             * @default 24
+             * @default 200
              */
             max_role_requests: number;
             pause_reason?: components["schemas"]["PauseReason"] | null;

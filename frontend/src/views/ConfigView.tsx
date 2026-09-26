@@ -26,7 +26,7 @@ import {
   type PresetSummaryView,
   type SceneSummaryView,
 } from '../api/client'
-import { codepointLimits } from '../api/contracts'
+import { budgets, codepointLimits } from '../api/contracts'
 import { trimmedCodepointLength } from '../lib/codepoints'
 
 const EMPTY_TEMPLATE = {
@@ -50,8 +50,14 @@ export function ConfigView({ onOpenScene }: ConfigViewProps) {
   const [title, setTitle] = useState('三个室友的客厅')
   const [background, setBackground] = useState('晚上，三个室友在客厅相遇，尚未确定今晚做什么。')
   const [selectedTemplates, setSelectedTemplates] = useState<string[]>([])
-  const [maxRoleRequests, setMaxRoleRequests] = useState('24')
-  const [maxAnalysisRequests, setMaxAnalysisRequests] = useState('4')
+  // 默认预算来自后端契约摘要（人工裁决 2026-09-26：角色请求默认上调为 200），
+  // 前端不再手写这个数字，避免与服务端默认值漂移。
+  const [maxRoleRequests, setMaxRoleRequests] = useState(
+    String(budgets.max_role_requests_per_scene),
+  )
+  const [maxAnalysisRequests, setMaxAnalysisRequests] = useState(
+    String(budgets.max_analysis_requests_per_scene),
+  )
   const [current, setCurrent] = useState<SceneDetailView | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)

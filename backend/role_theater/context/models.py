@@ -40,6 +40,9 @@ class TimelineItem:
     #: 仅事件使用。
     visibility: EventVisibility | None = None
     target_agent_id: str | None = None
+    #: 仅发言使用：服务端分配的消息 ID。模型要能引用它，必须先在提示词里看到它
+    #: （PRD 4.2 的 ``reply_to_message_id``），否则引用永远无法落在合法范围内。
+    message_id: str | None = None
     #: 仅发言使用。
     reply_to_message_id: str | None = None
     requested_speaker_id: str | None = None
@@ -52,6 +55,7 @@ class TimelineItem:
             body=message.text,
             author_agent_id=message.actor_id,
             author_name=author_name,
+            message_id=message.message_id,
             reply_to_message_id=message.reply_to_message_id,
             requested_speaker_id=message.requested_speaker_id,
         )

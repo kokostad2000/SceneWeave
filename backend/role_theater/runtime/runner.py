@@ -581,13 +581,19 @@ class SceneRunner:
         self._call_counts[scene_id] = self._call_counts.get(scene_id, 0) + 1
 
         # 引用范围：本场已提交且该角色可见的公开发言 + 本场其他有效角色（PRD 4.2）。
+        # 同一批发言同时给出消息 ID 与序号别名：提示词用 ``[#序号]`` 展示发言，
+        # 模型回序号或回消息 ID 都必须落在允许范围内。
+        visible_messages = [
+            message
+            for message in self._runtime.list_messages(scene_id)
+            if message.seq <= outcome.based_on_seq
+        ]
         references = ReferenceScope(
             actor_id=actor_id,
-            allowed_message_ids=[
-                message.message_id
-                for message in self._runtime.list_messages(scene_id)
-                if message.seq <= outcome.based_on_seq
-            ],
+            allowed_message_ids=[message.message_id for message in visible_messages],
+            allowed_message_seqs={
+                message.seq: message.message_id for message in visible_messages
+            },
             allowed_speaker_ids=[
                 agent.agent_id for agent in snapshot.ordered_agents if agent.agent_id != actor_id
             ],

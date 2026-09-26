@@ -32,7 +32,11 @@ MAX_ANALYSIS_CONTEXT_CODEPOINTS = 4000
 MAX_ANALYSIS_MATERIAL_ITEMS = 200
 
 # --- 预算（PRD 5.3）---
-MAX_ROLE_REQUESTS_PER_SCENE = 24
+#: 每场角色请求上限**默认值**。人工裁决 2026-09-26：由 24 上调为 200
+#: （「给 200 轮对话的限额」），仍可在创建会话时在 [1, MAX_SCENE_REQUEST_LIMIT]
+#: 内下调，开始后照旧锁定；分析请求上限保持 4，控制方式（单步／自动运行）不变。
+#: PRD 原文未改，决策记录见 state/STATUS.md §4 与 state/reports/CHANGE-role-request-limit.md。
+MAX_ROLE_REQUESTS_PER_SCENE = 200
 MAX_ANALYSIS_REQUESTS_PER_SCENE = 4
 MIN_SCENE_REQUEST_LIMIT = 1
 MAX_SCENE_REQUEST_LIMIT = 200
