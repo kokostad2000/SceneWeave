@@ -38,3 +38,6 @@ frontend/.vite/
 
 # 本地备份产物
 state/backups/
+
+# 本机专用的一次性运维脚本（本地保留可用，不入库）
+scripts/push_to_github.sh
