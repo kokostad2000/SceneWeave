@@ -15,8 +15,12 @@
 **M00～M07 全部已验收。** 工程与契约、角色与场景、可见性与调度、模型适配、运行与事件、
 操作界面、行为分析、集成与交付均已实现，并有确定性 Mock 证据。
 
-**交付结论：未达到「可试用」**——真实模型未接通、服务未部署、外部分析仓库未安装、
-人工观察未做。详见 [docs/RELEASE.md](docs/RELEASE.md) §7 与 [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md) §8。
+**交付结论：未达到「可试用」**——服务未部署、外部分析仓库未安装、聊天质量与界面的人工观察未做。
+真实模型**已接通并跑过真实会话**（2026-09-26／27 两场 `deepseek-flash`；第二场 22 次调用全部成功，22 条消息中 21 条带
+`reply_to_message_id`）。期间在真实调用中发现的引用缺陷已修复并回归，见
+[state/reports/FIX-reply-reference.md](state/reports/FIX-reply-reference.md)；
+每场角色请求上限默认值经人工裁决由 24 上调为 200，见 [state/reports/CHANGE-role-request-limit.md](state/reports/CHANGE-role-request-limit.md)。
+详见 [docs/RELEASE.md](docs/RELEASE.md) §7 与 [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md) §8。
 
 ## 目录
 
@@ -81,10 +85,10 @@ cd frontend && pnpm run dev
 ## 测试
 
 ```bash
-# 后端（354 项）
+# 后端（423 项）
 cd backend && uv run pytest
 
-# 前端（48 项）
+# 前端（49 项）
 cd frontend && pnpm run test
 cd frontend && pnpm run typecheck && pnpm run build
 
@@ -135,4 +139,6 @@ scripts/export_contracts.sh
 `SCENEWEAVE_DATABASE_URL`）。密钥**只**从环境变量读取，不写入代码或记录。
 未配置密钥时健康检查仍返回 200，仅 `model_configured=false`。
 
-本版本不进行真实模型 API 联调；行为分析的外部依赖在 M06 接入。
+本版本的真实模型调用需要显式 `live` 开关与密钥（见上）；行为分析的外部依赖仍未安装，分析能力默认关闭。
+每场预算默认「角色请求 200 / 分析请求 4」，创建会话时可在 [1, 200] 内下调，开始后锁定；单步一次只发一次调用，
+自动运行按原有暂停条件停下。

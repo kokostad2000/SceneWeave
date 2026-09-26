@@ -196,12 +196,12 @@ uv run python scripts/fake_local_model.py --port 11434 --model qwen2.5:7b   # �
 
 | # | 限制／缺项 | 影响 |
 |---|---|---|
-| 1 | **真实模型未接通**（当前环境无密钥） | 三人真实聊天、定向事件、真实分析均未验证；`live_integration.py` 已就绪，导出 `SCENEWEAVE_MODEL_API_KEY` 后即可执行；不得据 Mock 结果宣称真实验收完成 |
+| 1 | ~~**真实模型未接通**~~ **已接通（2026-09-26／27）** | 已用 `.env` 中的 `deepseek-flash` 跑过两场真实会话：第一场 8 次调用暴露引用缺陷（4 次 `SCHEMA_INVALID`），修复并重启后第二场 **22 次调用全部成功**（21 条消息带 `reply_to_message_id`）。**仍未验证**：定向事件的真实效果、真实行为分析、三个预置场景各三次的质量观察。见 `state/reports/FIX-reply-reference.md` §8–§9 |
 | 2 | **服务未部署** | 仅在本机 `127.0.0.1` 运行过；无公网／隧道部署验证 |
 | 3 | **外部分析仓库未安装** | 分析能力默认 `DISABLED`；模块路径与响应字段名待联调核对（`tasks/M06.md` U-M06-1/2） |
-| 4 | ~~`thinking` 字段名待核对~~ **已关闭** | 官方文档确认 `thinking: {"type": "disabled"}`（默认 `enabled`）；见 `docs/SOURCES.md` §1.1。仍待真实调用观察的是响应组合（U-M03-2）与 90 秒期限（U-M03-3） |
-| 5 | 聊天质量**人工观察**未做 | PRD 10 要求人工判断；三个预置场景已按人工裁决补齐（B6），Mock 样本已留档，但 Mock 不代表真实模型质量 |
-| 6 | 界面人工视觉验收未做 | 组件行为有 48 项测试，但没有人工视觉与键盘可达性验收 |
+| 4 | ~~`thinking` 字段名待核对~~ **已关闭** | 官方文档确认 `thinking: {"type": "disabled"}`（默认 `enabled`）；见 `docs/SOURCES.md` §1.1。真实响应的 `finish_reason=stop`、`usage`（含 `cached_tokens`）与 `id` 语义已在 2026-09-27 的 22 次调用中观察到，`U-M03-2` 由此可关闭；90 秒期限（U-M03-3）仍未触发观察 |
+| 5 | 聊天质量**人工观察**未做 | PRD 10 要求人工判断；三个预置场景已按人工裁决补齐（B6），Mock 样本已留档，2026-09-27 有一场 22 条消息的真实对话可供人工阅读，但**尚未完成**「三场景各三次」的人工观察 |
+| 6 | 界面人工视觉验收未做 | 组件行为有 49 项测试，但没有人工视觉与键盘可达性验收 |
 | 7 | 单进程单 worker | 多用户鉴权、多 worker 并发、多场景并行属后续设计（PRD 1.3） |
 | 8 | 远端 CI 未接入 | 当前是本地脚本 + 契约漂移检测 |
 | 9 | `docs/SOURCES.md` 已建立，但 PRD 的 `[S1]`～`[S9]` 仍缺失 | 已记录本项目**实际核对过**的来源（DeepSeek API 文档）；`[S1]`～`[S9]` 原始地址不在 PRD 内，**未编造**，保持未验证 |
@@ -245,8 +245,8 @@ cd backend && uv run python scripts/quality_observation.py --out ../state/report
 scripts/export_contracts.sh
 
 # 测试
-cd backend && uv run pytest                      # 347 项
-cd frontend && pnpm run test                     # 48 项
+cd backend && uv run pytest                      # 423 项
+cd frontend && pnpm run test                     # 49 项
 cd frontend && pnpm run typecheck && pnpm run build
 
 # 出站网络阻断下跑测试（证明无真实外部调用）
