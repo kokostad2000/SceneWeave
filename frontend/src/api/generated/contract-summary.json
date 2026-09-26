@@ -1,0 +1,148 @@
+{
+  "agent_count": {
+    "default": 3,
+    "max": 8,
+    "min": 2
+  },
+  "app_name": "SceneWeave",
+  "app_version": "0.1.0",
+  "budgets": {
+    "max_analysis_requests_per_scene": 4,
+    "max_role_requests_per_scene": 24
+  },
+  "contract_version": "m00.1",
+  "enums": [
+    {
+      "name": "ActionType",
+      "values": [
+        "SPEAK",
+        "PASS"
+      ]
+    },
+    {
+      "name": "EventVisibility",
+      "values": [
+        "ALL",
+        "TARGETED"
+      ]
+    },
+    {
+      "name": "EventStatus",
+      "values": [
+        "ACCEPTED",
+        "EFFECTIVE"
+      ]
+    },
+    {
+      "name": "RunState",
+      "values": [
+        "READY",
+        "RUNNING",
+        "PAUSING",
+        "STOPPING",
+        "PAUSED",
+        "ENDED"
+      ]
+    },
+    {
+      "name": "PauseReason",
+      "values": [
+        "NO_NEW_INFORMATION",
+        "MANUAL",
+        "PROVIDER_ERROR",
+        "CONTEXT_LIMIT",
+        "PROCESS_INTERRUPT"
+      ]
+    },
+    {
+      "name": "ControlCommandType",
+      "values": [
+        "START",
+        "STEP",
+        "PAUSE",
+        "RESUME",
+        "STOP"
+      ]
+    },
+    {
+      "name": "TurnStatus",
+      "values": [
+        "SUCCEEDED",
+        "FAILED",
+        "UNKNOWN"
+      ]
+    },
+    {
+      "name": "ModelFailureKind",
+      "values": [
+        "EMPTY_CONTENT",
+        "TRUNCATED",
+        "INVALID_JSON",
+        "SCHEMA_INVALID",
+        "REFERENCE_INVALID",
+        "TIMEOUT",
+        "PROVIDER_ERROR",
+        "CONTEXT_LIMIT",
+        "BUDGET_EXHAUSTED",
+        "MISSING_CONFIG",
+        "UNKNOWN_REQUEST",
+        "NOT_DISPATCHED"
+      ]
+    },
+    {
+      "name": "AnalysisStatus",
+      "values": [
+        "NORMAL",
+        "BLOCKED",
+        "DEGRADED",
+        "FAILED",
+        "DISABLED"
+      ]
+    },
+    {
+      "name": "SchedulerReason",
+      "values": [
+        "STARTUP_OPPORTUNITY",
+        "NEW_VISIBLE_INFORMATION",
+        "REQUESTED_SPEAKER_PRIORITY",
+        "ROUND_ROBIN"
+      ]
+    }
+  ],
+  "limit_codepoints": {
+    "agent_name": 30,
+    "analysis_behavior_description": 4000,
+    "analysis_context": 4000,
+    "event_body": 1000,
+    "initial_goal": 500,
+    "max_prompt_chars": 32000,
+    "persona": 1000,
+    "private_background": 1000,
+    "scene_background": 2000,
+    "speak_text": 200,
+    "speech_style": 300
+  },
+  "model_params": {
+    "max_output_tokens": 1024,
+    "min_speak_text_codepoints": 1,
+    "model": "deepseek-flash",
+    "request_timeout_seconds": 90,
+    "sdk_max_retries": 0,
+    "send_tools": false,
+    "stream": false,
+    "thinking_enabled": false
+  },
+  "ports": [
+    "ModelPort",
+    "AnalysisPort"
+  ],
+  "run_states": [
+    "READY",
+    "RUNNING",
+    "PAUSING",
+    "STOPPING",
+    "PAUSED",
+    "ENDED"
+  ],
+  "schema_version": 1
+}

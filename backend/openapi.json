@@ -1,0 +1,4257 @@
+{
+  "components": {
+    "schemas": {
+      "ActionDraft": {
+        "additionalProperties": false,
+        "description": "模型一次调用唯一允许返回的结构。\n\n``extra=\"forbid\"``：出现额外字段即失败（``SCHEMA_INVALID``），不忽略。",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ActionType"
+          },
+          "reply_to_message_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reply To Message Id"
+          },
+          "requested_speaker_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Requested Speaker Id"
+          },
+          "text": {
+            "default": "",
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "title": "ActionDraft",
+        "type": "object"
+      },
+      "ActionRecord": {
+        "additionalProperties": false,
+        "description": "一次角色调用的落盘结果。\n\n只有 ``SUCCEEDED`` 的 SPEAK／PASS 才推进该角色的已处理位置；失败不推进\n（PRD 5.1）。``input_cursor_seq`` 记录本次调用使用的输入快照截止序号。",
+        "properties": {
+          "action_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Action Id",
+            "type": "string"
+          },
+          "actor_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Actor Id",
+            "type": "string"
+          },
+          "attempt_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Attempt Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "draft": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActionDraft"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "input_cursor_seq": {
+            "minimum": 0,
+            "title": "Input Cursor Seq",
+            "type": "integer"
+          },
+          "message_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Message Id"
+          },
+          "prompt_template_id": {
+            "minLength": 1,
+            "title": "Prompt Template Id",
+            "type": "string"
+          },
+          "scene_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Scene Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TurnStatus"
+          },
+          "turn_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Turn Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action_id",
+          "turn_id",
+          "attempt_id",
+          "scene_id",
+          "actor_id",
+          "status",
+          "input_cursor_seq",
+          "prompt_template_id",
+          "created_at"
+        ],
+        "title": "ActionRecord",
+        "type": "object"
+      },
+      "ActionType": {
+        "description": "模型只能返回的行动类型（PRD 4.2）。",
+        "enum": [
+          "SPEAK",
+          "PASS"
+        ],
+        "title": "ActionType",
+        "type": "string"
+      },
+      "AgentCreateRequest": {
+        "additionalProperties": false,
+        "description": "由模板新增一名本场角色。",
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "template_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Template Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "template_id"
+        ],
+        "title": "AgentCreateRequest",
+        "type": "object"
+      },
+      "AgentProfileFields": {
+        "additionalProperties": false,
+        "description": "模板保存的五项内容（PRD 3.2）。长度按 Unicode 码点校验。",
+        "properties": {
+          "initial_goal": {
+            "title": "Initial Goal",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "persona": {
+            "title": "Persona",
+            "type": "string"
+          },
+          "private_background": {
+            "title": "Private Background",
+            "type": "string"
+          },
+          "speech_style": {
+            "title": "Speech Style",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "persona",
+          "speech_style",
+          "initial_goal",
+          "private_background"
+        ],
+        "title": "AgentProfileFields",
+        "type": "object"
+      },
+      "AgentRenameRequest": {
+        "additionalProperties": false,
+        "description": "重命名本场角色（显示名称）。",
+        "properties": {
+          "name": {
+            "maxLength": 30,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "AgentRenameRequest",
+        "type": "object"
+      },
+      "AgentSnapshot": {
+        "additionalProperties": false,
+        "description": "创建本场角色时保存的模板快照。\n\n模板后续改动**不影响**历史与已有会话；同时记录模板来源 ID。",
+        "properties": {
+          "captured_at": {
+            "format": "date-time",
+            "title": "Captured At",
+            "type": "string"
+          },
+          "initial_goal": {
+            "title": "Initial Goal",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "persona": {
+            "title": "Persona",
+            "type": "string"
+          },
+          "private_background": {
+            "title": "Private Background",
+            "type": "string"
+          },
+          "source_template_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Source Template Id",
+            "type": "string"
+          },
+          "speech_style": {
+            "title": "Speech Style",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "persona",
+          "speech_style",
+          "initial_goal",
+          "private_background",
+          "source_template_id",
+          "captured_at"
+        ],
+        "title": "AgentSnapshot",
+        "type": "object"
+      },
+      "AgentSpecRequest": {
+        "additionalProperties": false,
+        "description": "创建场景时对一名本场角色的要求。",
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "template_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Template Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "template_id"
+        ],
+        "title": "AgentSpecRequest",
+        "type": "object"
+      },
+      "AgentStatusListView": {
+        "additionalProperties": false,
+        "properties": {
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/AgentStatusView"
+            },
+            "title": "Agents",
+            "type": "array"
+          },
+          "in_flight": {
+            "default": false,
+            "title": "In Flight",
+            "type": "boolean"
+          },
+          "scene_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Scene Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scene_id",
+          "agents"
+        ],
+        "title": "AgentStatusListView",
+        "type": "object"
+      },
+      "AgentStatusView": {
+        "additionalProperties": false,
+        "description": "单个本场角色的执行状态（PRD 7.1：角色卡显示名称与执行状态）。\n\n只暴露**运行事实**（是否行动过、上次行动结果、已处理到哪条），\n不含任何心理或关系评分。",
+        "properties": {
+          "agent_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "has_acted": {
+            "default": false,
+            "title": "Has Acted",
+            "type": "boolean"
+          },
+          "is_requested": {
+            "default": false,
+            "title": "Is Requested",
+            "type": "boolean"
+          },
+          "last_action_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Action At"
+          },
+          "last_action_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Action Status"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "order_index": {
+            "minimum": 0.0,
+            "title": "Order Index",
+            "type": "integer"
+          },
+          "processed_seq": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Processed Seq",
+            "type": "integer"
+          },
+          "speak_count": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Speak Count",
+            "type": "integer"
+          },
+          "startup_opportunity_consumed": {
+            "default": false,
+            "title": "Startup Opportunity Consumed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "agent_id",
+          "name",
+          "order_index"
+        ],
+        "title": "AgentStatusView",
+        "type": "object"
+      },
+      "AgentTemplate": {
+        "additionalProperties": false,
+        "description": "角色模板；支持创建、编辑、复制、列表查看与移除（PRD 3.2）。",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "initial_goal": {
+            "title": "Initial Goal",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "persona": {
+            "title": "Persona",
+            "type": "string"
+          },
+          "private_background": {
+            "title": "Private Background",
+            "type": "string"
+          },
+          "speech_style": {
+            "title": "Speech Style",
+            "type": "string"
+          },
+          "template_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Template Id",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "persona",
+          "speech_style",
+          "initial_goal",
+          "private_background",
+          "template_id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "AgentTemplate",
+        "type": "object"
+      },
+      "AnalysisCapability": {
+        "additionalProperties": false,
+        "description": "分析能力开关状态，用于健康检查与界面提示。",
+        "properties": {
+          "enabled": {
+            "default": false,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "external_package_installed": {
+            "default": false,
+            "title": "External Package Installed",
+            "type": "boolean"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "title": "AnalysisCapability",
+        "type": "object"
+      },
+      "AnalysisCapabilityView": {
+        "additionalProperties": false,
+        "description": "分析能力状态（供界面决定是否可用与如何解释）。",
+        "properties": {
+          "capability": {
+            "$ref": "#/components/schemas/AnalysisCapability"
+          },
+          "scene_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Scene Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scene_id",
+          "capability"
+        ],
+        "title": "AnalysisCapabilityView",
+        "type": "object"
+      },
+      "AnalysisCreateRequest": {
+        "additionalProperties": false,
+        "description": "请求分析：选定一名本场角色与若干**已提交公开材料**的序号。",
+        "properties": {
+          "agent_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "material_seqs": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 200,
+            "title": "Material Seqs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "agent_id"
+        ],
+        "title": "AnalysisCreateRequest",
+        "type": "object"
+      },
+      "AnalysisListView": {
+        "additionalProperties": false,
+        "description": "分析记录列表 + **分开呈现**的操作数与实际模型请求数（PRD 5.3）。",
+        "properties": {
+          "analysis_requests_used": {
+            "minimum": 0.0,
+            "title": "Analysis Requests Used",
+            "type": "integer"
+          },
+          "capability": {
+            "$ref": "#/components/schemas/AnalysisCapability"
+          },
+          "max_analysis_requests": {
+            "minimum": 0.0,
+            "title": "Max Analysis Requests",
+            "type": "integer"
+          },
+          "operations_total": {
+            "minimum": 0.0,
+            "title": "Operations Total",
+            "type": "integer"
+          },
+          "provider_attempts_total": {
+            "minimum": 0.0,
+            "title": "Provider Attempts Total",
+            "type": "integer"
+          },
+          "records": {
+            "items": {
+              "$ref": "#/components/schemas/AnalysisRecordView"
+            },
+            "title": "Records",
+            "type": "array"
+          },
+          "scene_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Scene Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scene_id",
+          "capability",
+          "operations_total",
+          "provider_attempts_total",
+          "analysis_requests_used",
+          "max_analysis_requests",
+          "records"
+        ],
+        "title": "AnalysisListView",
+        "type": "object"
+      },
+      "AnalysisMaterialRef": {
+        "additionalProperties": false,
+        "description": "选中的公开材料引用：保留原文、来源角色与消息 ID（PRD 6.1）。\n\n默认不送出任何私有背景或定向事件。",
+        "properties": {
+          "author_agent_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Author Agent Id"
+          },
+          "kind": {
+            "pattern": "^(message|event)$",
+            "title": "Kind",
+            "type": "string"
+          },
+          "source_id": {
+            "minLength": 1,
+            "title": "Source Id",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "source_id",
+          "text"
+        ],
+        "title": "AnalysisMaterialRef",
+        "type": "object"
+      },
+      "AnalysisRecordView": {
+        "additionalProperties": false,
+        "description": "一条分析记录（含报告与计数，界面据此区分五状态）。",
+        "properties": {
+          "agent_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "analysis_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Analysis Id",
+            "type": "string"
+          },
+          "behavior_description": {
+            "default": "",
+            "title": "Behavior Description",
+            "type": "string"
+          },
+          "context": {
+            "default": "",
+            "title": "Context",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "degradation_flags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Degradation Flags",
+            "type": "array"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "material_seqs": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Material Seqs",
+            "type": "array"
+          },
+          "materials": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Materials",
+            "type": "array"
+          },
+          "provider_attempts": {
+            "minimum": 0.0,
+            "title": "Provider Attempts",
+            "type": "integer"
+          },
+          "report": {
+            "$ref": "#/components/schemas/AnalysisReport"
+          },
+          "scene_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Scene Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "analysis_id",
+          "scene_id",
+          "agent_id",
+          "status",
+          "provider_attempts",
+          "created_at",
+          "report"
+        ],
+        "title": "AnalysisRecordView",
+        "type": "object"
+      },
+      "AnalysisReport": {
+        "additionalProperties": false,
+        "description": "分析结果。\n\n必须区分 normal／blocked／degraded／failed／disabled 五种状态；保留\n``degradation_flags``，不把返回 JSON 当成分析成功（PRD 6.2）。结果不进入\n角色记忆、不改变人设、不触发调度。",
+        "properties": {
+          "agent_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id"
+          },
+          "alternative_explanations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Alternative Explanations",
+            "type": "array"
+          },
+          "behavior_labels": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Behavior Labels",
+            "type": "array"
+          },
+          "degradation_flags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Degradation Flags",
+            "type": "array"
+          },
+          "disclaimer": {
+            "default": "",
+            "title": "Disclaimer",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Limitations",
+            "type": "array"
+          },
+          "mechanisms": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Mechanisms",
+            "type": "array"
+          },
+          "provider_attempts": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Provider Attempts",
+            "type": "integer"
+          },
+          "scene_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scene Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AnalysisStatus"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/Usage"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "AnalysisReport",
+        "type": "object"
+      },
+      "AnalysisRequest": {
+        "additionalProperties": false,
+        "description": "送交行为分析的材料。\n\n``behavior_description`` 与 ``context`` 各自最多 4000 字符；超限时提示\n缩小选择，**不静默截断、不自动总结**（PRD 6.1）。",
+        "properties": {
+          "agent_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "behavior_description": {
+            "title": "Behavior Description",
+            "type": "string"
+          },
+          "context": {
+            "default": "",
+            "title": "Context",
+            "type": "string"
+          },
+          "materials": {
+            "items": {
+              "$ref": "#/components/schemas/AnalysisMaterialRef"
+            },
+            "title": "Materials",
+            "type": "array"
+          },
+          "persist_profile": {
+            "default": false,
+            "title": "Persist Profile",
+            "type": "boolean"
+          },
+          "provider_attempts": {
+            "default": 0,
+            "maximum": 1,
+            "minimum": 0,
+            "title": "Provider Attempts",
+            "type": "integer"
+          },
+          "scene_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Scene Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scene_id",
+          "agent_id",
+          "behavior_description"
+        ],
+        "title": "AnalysisRequest",
+        "type": "object"
+      },
+      "AnalysisStatus": {
+        "description": "五种结果状态必须区分（PRD 6.2）。",
+        "enum": [
+          "NORMAL",
+          "BLOCKED",
+          "DEGRADED",
+          "FAILED",
+          "DISABLED"
+        ],
+        "title": "AnalysisStatus",
+        "type": "string"
+      },
+      "ApiError": {
+        "additionalProperties": false,
+        "description": "统一错误响应。``request_id`` 便于与幂等命令对账（PRD 5.4）。",
+        "properties": {
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "error": {
+            "title": "Error",
+            "type": "string"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Request Id"
+          },
+          "retryable": {
+            "default": false,
+            "title": "Retryable",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "title": "ApiError",
+        "type": "object"
+      },
+      "Budget": {
+        "additionalProperties": false,
+        "description": "每场预算上限（PRD 5.3）。\n\n两项独立计数；创建前可在服务端允许范围内修改，开始时锁定（``locked_at``）。",
+        "properties": {
+          "locked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Locked At"
+          },
+          "max_analysis_requests": {
+            "default": 4,
+            "maximum": 200.0,
+            "minimum": 0.0,
+            "title": "Max Analysis Requests",
+            "type": "integer"
+          },
+          "max_role_requests": {
+            "default": 24,
+            "maximum": 200.0,
+            "minimum": 1.0,
+            "title": "Max Role Requests",
+            "type": "integer"
+          }
+        },
+        "title": "Budget",
+        "type": "object"
+      },
+      "BudgetUsage": {
+        "additionalProperties": false,
+        "description": "预算消耗计数。\n\n每次**实际发送**都占用一次；失败、超时和人工重试不退款（PRD 5.3）。",
+        "properties": {
+          "analysis_requests_in_flight": {
+            "default": 0,
+            "maximum": 1,
+            "minimum": 0,
+            "title": "Analysis Requests In Flight",
+            "type": "integer"
+          },
+          "analysis_requests_used": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Analysis Requests Used",
+            "type": "integer"
+          },
+          "role_requests_in_flight": {
+            "default": 0,
+            "maximum": 1,
+            "minimum": 0,
+            "title": "Role Requests In Flight",
+            "type": "integer"
+          },
+          "role_requests_used": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Role Requests Used",
+            "type": "integer"
+          }
+        },
+        "title": "BudgetUsage",
+        "type": "object"
+      },
+      "CommandAck": {
+        "additionalProperties": false,
+        "description": "命令受理结果。\n\n``deduplicated=True`` 表示重放同一个幂等命令，**未**新增模型请求或记录\n（PRD 5.3、5.4）。``event_status`` 区分“已接受”与“已生效”。",
+        "properties": {
+          "accepted": {
+            "title": "Accepted",
+            "type": "boolean"
+          },
+          "command": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ControlCommandType"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "deduplicated": {
+            "default": false,
+            "title": "Deduplicated",
+            "type": "boolean"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "event_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Id"
+          },
+          "event_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Status"
+          },
+          "pause_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PauseReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "request_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Request Id",
+            "type": "string"
+          },
+          "run_state": {
+            "$ref": "#/components/schemas/RunState"
+          }
+        },
+        "required": [
+          "request_id",
+          "accepted",
+          "run_state"
+        ],
+        "title": "CommandAck",
+        "type": "object"
+      },
+      "ContractSummary": {
+        "additionalProperties": false,
+        "description": "契约自检摘要，供前端与测试核对。不承载业务逻辑。",
+        "properties": {
+          "agent_count": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Agent Count",
+            "type": "object"
+          },
+          "app_name": {
+            "default": "SceneWeave",
+            "title": "App Name",
+            "type": "string"
+          },
+          "app_version": {
+            "default": "0.1.0",
+            "title": "App Version",
+            "type": "string"
+          },
+          "budgets": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Budgets",
+            "type": "object"
+          },
+          "contract_version": {
+            "default": "m00.1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "enums": {
+            "items": {
+              "$ref": "#/components/schemas/EnumSummary"
+            },
+            "title": "Enums",
+            "type": "array"
+          },
+          "limit_codepoints": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Limit Codepoints",
+            "type": "object"
+          },
+          "model_params": {
+            "additionalProperties": true,
+            "title": "Model Params",
+            "type": "object"
+          },
+          "ports": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Ports",
+            "type": "array"
+          },
+          "run_states": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Run States",
+            "type": "array"
+          },
+          "schema_version": {
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "enums",
+          "limit_codepoints",
+          "agent_count",
+          "budgets",
+          "model_params",
+          "ports",
+          "run_states"
+        ],
+        "title": "ContractSummary",
+        "type": "object"
+      },
+      "ControlCommand": {
+        "additionalProperties": false,
+        "description": "控制命令信封。``request_id`` 用于幂等去重。",
+        "properties": {
+          "command": {
+            "$ref": "#/components/schemas/ControlCommandType"
+          },
+          "request_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Request Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id",
+          "command"
+        ],
+        "title": "ControlCommand",
+        "type": "object"
+      },
+      "ControlCommandRequest": {
+        "additionalProperties": false,
+        "description": "控制命令（PRD 5.2、5.4：携带 ``request_id`` 以便幂等）。",
+        "properties": {
+          "command": {
+            "$ref": "#/components/schemas/ControlCommandType"
+          },
+          "request_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Request Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id",
+          "command"
+        ],
+        "title": "ControlCommandRequest",
+        "type": "object"
+      },
+      "ControlCommandType": {
+        "description": "控制命令类型（PRD 5.2）。",
+        "enum": [
+          "START",
+          "STEP",
+          "PAUSE",
+          "RESUME",
+          "STOP"
+        ],
+        "title": "ControlCommandType",
+        "type": "string"
+      },
+      "EnumSummary": {
+        "additionalProperties": false,
+        "description": "单个枚举的取值摘要。",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "values": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Values",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "values"
+        ],
+        "title": "EnumSummary",
+        "type": "object"
+      },
+      "Event": {
+        "additionalProperties": false,
+        "description": "已落盘的人工事件。\n\n定向事件中的文字是角色收到的信息，**不是**能覆盖系统规则的指令\n（PRD 4.1）；该约束由 ContextBuilder 在 M02 保证，契约层只承载可见范围。",
+        "properties": {
+          "accepted_at": {
+            "format": "date-time",
+            "title": "Accepted At",
+            "type": "string"
+          },
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "effective_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective At"
+          },
+          "event_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Event Id",
+            "type": "string"
+          },
+          "scene_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Scene Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "seq": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seq"
+          },
+          "status": {
+            "$ref": "#/components/schemas/EventStatus"
+          },
+          "target_agent_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Agent Id"
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/EventVisibility"
+          }
+        },
+        "required": [
+          "body",
+          "visibility",
+          "event_id",
+          "scene_id",
+          "status",
+          "accepted_at"
+        ],
+        "title": "Event",
+        "type": "object"
+      },
+      "EventStatus": {
+        "description": "界面必须区分“已接受”和“已生效”（PRD 4.3）。",
+        "enum": [
+          "ACCEPTED",
+          "EFFECTIVE"
+        ],
+        "title": "EventStatus",
+        "type": "string"
+      },
+      "EventSubmission": {
+        "additionalProperties": false,
+        "description": "操作者提交事件的请求内容（不含服务端分配的 ID／seq／状态）。",
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "target_agent_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Target Agent Id"
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/EventVisibility"
+          }
+        },
+        "required": [
+          "body",
+          "visibility"
+        ],
+        "title": "EventSubmission",
+        "type": "object"
+      },
+      "EventView": {
+        "additionalProperties": false,
+        "description": "单个事件（含状态，界面需区分已接受／已生效）。",
+        "properties": {
+          "event": {
+            "$ref": "#/components/schemas/Event"
+          },
+          "status": {
+            "$ref": "#/components/schemas/EventStatus"
+          }
+        },
+        "required": [
+          "event",
+          "status"
+        ],
+        "title": "EventView",
+        "type": "object"
+      },
+      "EventVisibility": {
+        "description": "人工事件可见范围（PRD 4.3）。",
+        "enum": [
+          "ALL",
+          "TARGETED"
+        ],
+        "title": "EventVisibility",
+        "type": "string"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HealthResponse": {
+        "additionalProperties": false,
+        "description": "最小健康检查响应。\n\n**不需要任何模型密钥**即可返回 200；未配置密钥只体现为\n``model_configured=false``。健康检查不发起任何外部调用。",
+        "properties": {
+          "analysis_enabled": {
+            "default": false,
+            "title": "Analysis Enabled",
+            "type": "boolean"
+          },
+          "app_name": {
+            "default": "SceneWeave",
+            "title": "App Name",
+            "type": "string"
+          },
+          "app_version": {
+            "default": "0.1.0",
+            "title": "App Version",
+            "type": "string"
+          },
+          "contract_version": {
+            "default": "m00.1",
+            "title": "Contract Version",
+            "type": "string"
+          },
+          "model_configured": {
+            "default": false,
+            "title": "Model Configured",
+            "type": "boolean"
+          },
+          "model_credential_source": {
+            "default": "none",
+            "title": "Model Credential Source",
+            "type": "string"
+          },
+          "model_provider": {
+            "default": "mock",
+            "title": "Model Provider",
+            "type": "string"
+          },
+          "run_state": {
+            "$ref": "#/components/schemas/RunState",
+            "default": "READY"
+          },
+          "status": {
+            "const": "ok",
+            "default": "ok",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "title": "HealthResponse",
+        "type": "object"
+      },
+      "InjectEventCommand": {
+        "additionalProperties": false,
+        "description": "提交人工事件（暂停时立即生效；调用中先保存为待生效，PRD 4.3）。",
+        "properties": {
+          "event": {
+            "$ref": "#/components/schemas/EventSubmission"
+          },
+          "request_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Request Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id",
+          "event"
+        ],
+        "title": "InjectEventCommand",
+        "type": "object"
+      },
+      "InjectEventRequest": {
+        "additionalProperties": false,
+        "description": "提交人工事件（PRD 4.3）。",
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "request_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Request Id",
+            "type": "string"
+          },
+          "target_agent_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Agent Id"
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/EventVisibility"
+          }
+        },
+        "required": [
+          "request_id",
+          "body",
+          "visibility"
+        ],
+        "title": "InjectEventRequest",
+        "type": "object"
+      },
+      "Message": {
+        "additionalProperties": false,
+        "description": "已提交的公开角色发言（PRD 4.1、4.2）。\n\n``PASS`` 不形成聊天气泡，但保存行动结果并推进已处理位置——因此这里只\n承载 SPEAK 产生的消息。",
+        "properties": {
+          "actor_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Actor Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "message_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Message Id",
+            "type": "string"
+          },
+          "reply_to_message_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reply To Message Id"
+          },
+          "requested_speaker_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested Speaker Id"
+          },
+          "scene_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Scene Id",
+            "type": "string"
+          },
+          "seq": {
+            "minimum": 1.0,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message_id",
+          "scene_id",
+          "seq",
+          "actor_id",
+          "text",
+          "created_at"
+        ],
+        "title": "Message",
+        "type": "object"
+      },
+      "ModelActionRequest": {
+        "additionalProperties": false,
+        "description": "一次角色行动请求。\n\n``prompt`` 由 ContextBuilder（M02）按实际可见性构建；``cursor_seq`` 是本次\n输入的截止序号快照，行动只能基于发送时的快照（PRD 5.1）。",
+        "properties": {
+          "actor_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Actor Id",
+            "type": "string"
+          },
+          "cursor_seq": {
+            "minimum": 0,
+            "title": "Cursor Seq",
+            "type": "integer"
+          },
+          "params": {
+            "$ref": "#/components/schemas/ModelParams",
+            "default": {
+              "max_output_tokens": 1024,
+              "model": "deepseek-flash",
+              "request_timeout_seconds": 90,
+              "response_format": "json_object",
+              "sdk_max_retries": 0,
+              "send_tools": false,
+              "stream": false,
+              "thinking_enabled": false
+            }
+          },
+          "prompt": {
+            "title": "Prompt",
+            "type": "string"
+          },
+          "prompt_template_id": {
+            "minLength": 1,
+            "title": "Prompt Template Id",
+            "type": "string"
+          },
+          "references": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReferenceScope"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "scene_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Scene Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scene_id",
+          "actor_id",
+          "prompt_template_id",
+          "prompt",
+          "cursor_seq"
+        ],
+        "title": "ModelActionRequest",
+        "type": "object"
+      },
+      "ModelActionResponse": {
+        "additionalProperties": false,
+        "description": "模型调用结果。\n\n``ok=True`` 当且仅当存在合法 ``draft`` 且没有 ``failure``。\n\n``sent`` 的语义是**是否可能已经送达服务端**：\n\n- ``sent=False`` + ``UNKNOWN_REQUEST``：发送结果不明，必须保守占用预算，**不得自动重发**（PRD 5.3）；\n- ``sent=False`` + 其他分类：本地拒绝发送（上下文超限、缺少配置、参数非法），\n  未新增模型请求，因此**不占用预算**（PRD 5.3）。",
+        "properties": {
+          "draft": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActionDraft"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "failure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelFailure"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "finish_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Finish Reason"
+          },
+          "latency_ms": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Latency Ms"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "prompt_template_id": {
+            "minLength": 1,
+            "title": "Prompt Template Id",
+            "type": "string"
+          },
+          "provider_request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Provider Request Id"
+          },
+          "raw_content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Raw Content"
+          },
+          "requested_model": {
+            "default": "deepseek-flash",
+            "title": "Requested Model",
+            "type": "string"
+          },
+          "returned_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Returned Model"
+          },
+          "sent": {
+            "default": true,
+            "title": "Sent",
+            "type": "boolean"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/Usage"
+          }
+        },
+        "required": [
+          "ok",
+          "prompt_template_id"
+        ],
+        "title": "ModelActionResponse",
+        "type": "object"
+      },
+      "ModelFailure": {
+        "additionalProperties": false,
+        "description": "模型调用失败。失败**不**推进角色已处理位置，也不伪装成 PASS。",
+        "properties": {
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "http_status": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Http Status"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ModelFailureKind"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "ModelFailure",
+        "type": "object"
+      },
+      "ModelFailureKind": {
+        "description": "模型调用的失败分类（PRD 4.2 / 5.2 / 5.3）。\n\nUNKNOWN_REQUEST / 发送结果不明时保守占用预算并标记 UNKNOWN（PRD 5.3）。",
+        "enum": [
+          "EMPTY_CONTENT",
+          "TRUNCATED",
+          "INVALID_JSON",
+          "SCHEMA_INVALID",
+          "REFERENCE_INVALID",
+          "TIMEOUT",
+          "PROVIDER_ERROR",
+          "CONTEXT_LIMIT",
+          "BUDGET_EXHAUSTED",
+          "MISSING_CONFIG",
+          "UNKNOWN_REQUEST",
+          "NOT_DISPATCHED"
+        ],
+        "title": "ModelFailureKind",
+        "type": "string"
+      },
+      "ModelParams": {
+        "additionalProperties": false,
+        "description": "发送给模型服务端的参数（PRD 2.2 初值，联调后再评审）。\n\n注意：思考模式开启时温度参数无效，不能靠较低的 temperature 假设思考已关闭。\n本期不发送 ``reasoning_effort=100``，不发送 tools。",
+        "properties": {
+          "max_output_tokens": {
+            "default": 1024,
+            "minimum": 1,
+            "title": "Max Output Tokens",
+            "type": "integer"
+          },
+          "model": {
+            "default": "deepseek-flash",
+            "title": "Model",
+            "type": "string"
+          },
+          "request_timeout_seconds": {
+            "default": 90,
+            "minimum": 1,
+            "title": "Request Timeout Seconds",
+            "type": "integer"
+          },
+          "response_format": {
+            "default": "json_object",
+            "title": "Response Format",
+            "type": "string"
+          },
+          "sdk_max_retries": {
+            "default": 0,
+            "maximum": 0,
+            "minimum": 0,
+            "title": "Sdk Max Retries",
+            "type": "integer"
+          },
+          "send_tools": {
+            "default": false,
+            "title": "Send Tools",
+            "type": "boolean"
+          },
+          "stream": {
+            "default": false,
+            "title": "Stream",
+            "type": "boolean"
+          },
+          "thinking_enabled": {
+            "default": false,
+            "title": "Thinking Enabled",
+            "type": "boolean"
+          }
+        },
+        "title": "ModelParams",
+        "type": "object"
+      },
+      "PauseReason": {
+        "description": "暂停原因必须区分（PRD 5.2）。",
+        "enum": [
+          "NO_NEW_INFORMATION",
+          "MANUAL",
+          "PROVIDER_ERROR",
+          "CONTEXT_LIMIT",
+          "PROCESS_INTERRUPT"
+        ],
+        "title": "PauseReason",
+        "type": "string"
+      },
+      "PresetListView": {
+        "additionalProperties": false,
+        "properties": {
+          "presets": {
+            "items": {
+              "$ref": "#/components/schemas/PresetSummaryView"
+            },
+            "title": "Presets",
+            "type": "array"
+          }
+        },
+        "required": [
+          "presets"
+        ],
+        "title": "PresetListView",
+        "type": "object"
+      },
+      "PresetSceneCreateRequest": {
+        "additionalProperties": false,
+        "description": "用预置场景创建会话。",
+        "properties": {
+          "preset_key": {
+            "default": "roommates",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Preset Key",
+            "type": "string"
+          }
+        },
+        "title": "PresetSceneCreateRequest",
+        "type": "object"
+      },
+      "PresetSummaryView": {
+        "additionalProperties": false,
+        "description": "预置场景摘要（供界面展示与测试核对）。",
+        "properties": {
+          "agent_names": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Agent Names",
+            "type": "array"
+          },
+          "background": {
+            "title": "Background",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "title",
+          "background",
+          "agent_names"
+        ],
+        "title": "PresetSummaryView",
+        "type": "object"
+      },
+      "ReferenceScope": {
+        "additionalProperties": false,
+        "description": "本次调用允许出现的引用范围（PRD 4.2）。\n\n由 M04 从\"本场已提交且该角色可见的公开发言\"与\"本场其他有效角色\"构建；\n``reply_to_message_id`` 与 ``requested_speaker_id`` 只能落在其中。",
+        "properties": {
+          "actor_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Actor Id",
+            "type": "string"
+          },
+          "allowed_message_ids": {
+            "items": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Allowed Message Ids",
+            "type": "array"
+          },
+          "allowed_speaker_ids": {
+            "items": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Allowed Speaker Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "actor_id"
+        ],
+        "title": "ReferenceScope",
+        "type": "object"
+      },
+      "RoleCursor": {
+        "additionalProperties": false,
+        "description": "每个角色的已处理位置。只有成功的 SPEAK／PASS 才推进（PRD 5.1）。",
+        "properties": {
+          "agent_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "consecutive_requested_priority": {
+            "default": 0,
+            "maximum": 2,
+            "minimum": 0,
+            "title": "Consecutive Requested Priority",
+            "type": "integer"
+          },
+          "last_action_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last Action At"
+          },
+          "last_action_status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TurnStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "last_action_turn_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last Action Turn Id"
+          },
+          "processed_seq": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Processed Seq",
+            "type": "integer"
+          },
+          "scene_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Scene Id",
+            "type": "string"
+          },
+          "startup_opportunity_consumed": {
+            "default": false,
+            "title": "Startup Opportunity Consumed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "scene_id",
+          "agent_id"
+        ],
+        "title": "RoleCursor",
+        "type": "object"
+      },
+      "RunState": {
+        "description": "会话运行状态（PRD 5.2）。没有其他状态。",
+        "enum": [
+          "READY",
+          "RUNNING",
+          "PAUSING",
+          "STOPPING",
+          "PAUSED",
+          "ENDED"
+        ],
+        "title": "RunState",
+        "type": "string"
+      },
+      "RunStateView": {
+        "additionalProperties": false,
+        "description": "当前运行状态与预算（供界面控制区使用）。",
+        "properties": {
+          "analysis_requests_used": {
+            "minimum": 0.0,
+            "title": "Analysis Requests Used",
+            "type": "integer"
+          },
+          "in_flight": {
+            "default": false,
+            "title": "In Flight",
+            "type": "boolean"
+          },
+          "last_committed_seq": {
+            "minimum": 0.0,
+            "title": "Last Committed Seq",
+            "type": "integer"
+          },
+          "max_analysis_requests": {
+            "default": 4,
+            "minimum": 0.0,
+            "title": "Max Analysis Requests",
+            "type": "integer"
+          },
+          "max_role_requests": {
+            "default": 24,
+            "minimum": 0.0,
+            "title": "Max Role Requests",
+            "type": "integer"
+          },
+          "pause_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PauseReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "role_requests_used": {
+            "minimum": 0.0,
+            "title": "Role Requests Used",
+            "type": "integer"
+          },
+          "scene_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Scene Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunState"
+          }
+        },
+        "required": [
+          "scene_id",
+          "status",
+          "role_requests_used",
+          "analysis_requests_used",
+          "last_committed_seq"
+        ],
+        "title": "RunStateView",
+        "type": "object"
+      },
+      "RunStatus": {
+        "additionalProperties": false,
+        "description": "会话运行状态快照，用于界面与 SSE 之外的只读查询。",
+        "properties": {
+          "last_committed_seq": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Last Committed Seq",
+            "type": "integer"
+          },
+          "pause_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PauseReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pending_event_count": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Pending Event Count",
+            "type": "integer"
+          },
+          "run_state": {
+            "$ref": "#/components/schemas/RunState"
+          },
+          "scene_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Scene Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scene_id",
+          "run_state"
+        ],
+        "title": "RunStatus",
+        "type": "object"
+      },
+      "ScenarioSummaryView": {
+        "additionalProperties": false,
+        "description": "运行概览：实际调用计数与失败统计（PRD 1.2「实际调用计数」）。",
+        "properties": {
+          "failed": {
+            "minimum": 0.0,
+            "title": "Failed",
+            "type": "integer"
+          },
+          "last_failure_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Failure Kind"
+          },
+          "max_role_requests": {
+            "minimum": 0.0,
+            "title": "Max Role Requests",
+            "type": "integer"
+          },
+          "role_requests_used": {
+            "minimum": 0.0,
+            "title": "Role Requests Used",
+            "type": "integer"
+          },
+          "scene_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Scene Id",
+            "type": "string"
+          },
+          "succeeded": {
+            "minimum": 0.0,
+            "title": "Succeeded",
+            "type": "integer"
+          },
+          "unknown": {
+            "minimum": 0.0,
+            "title": "Unknown",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "scene_id",
+          "role_requests_used",
+          "max_role_requests",
+          "succeeded",
+          "failed",
+          "unknown"
+        ],
+        "title": "ScenarioSummaryView",
+        "type": "object"
+      },
+      "Scene": {
+        "additionalProperties": false,
+        "description": "场景／会话（PRD 3.1、5.2）。一个活动场景，多份历史记录。",
+        "properties": {
+          "background": {
+            "title": "Background",
+            "type": "string"
+          },
+          "budget": {
+            "$ref": "#/components/schemas/Budget"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "pause_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PauseReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scene_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Scene Id",
+            "type": "string"
+          },
+          "schema_version": {
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunState",
+            "default": "READY"
+          },
+          "title": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scene_id",
+          "title",
+          "background",
+          "budget",
+          "created_at"
+        ],
+        "title": "Scene",
+        "type": "object"
+      },
+      "SceneAgent": {
+        "additionalProperties": false,
+        "description": "本场角色实例：``agent_id`` 是关联主键，``name`` 是显示字段。",
+        "properties": {
+          "agent_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "order_index": {
+            "minimum": 0.0,
+            "title": "Order Index",
+            "type": "integer"
+          },
+          "scene_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Scene Id",
+            "type": "string"
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/AgentSnapshot"
+          }
+        },
+        "required": [
+          "agent_id",
+          "scene_id",
+          "name",
+          "order_index",
+          "snapshot",
+          "created_at"
+        ],
+        "title": "SceneAgent",
+        "type": "object"
+      },
+      "SceneCreateRequest": {
+        "additionalProperties": false,
+        "description": "创建场景（会话）。\n\n``agents`` 的 2～8 人约束在契约层即校验，因此越界请求得到 422 而不是\n进入业务层（PRD 1.2、9）。",
+        "properties": {
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/AgentSpecRequest"
+            },
+            "maxItems": 8,
+            "minItems": 2,
+            "title": "Agents",
+            "type": "array"
+          },
+          "background": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Background",
+            "type": "string"
+          },
+          "max_analysis_requests": {
+            "anyOf": [
+              {
+                "maximum": 200.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Analysis Requests"
+          },
+          "max_role_requests": {
+            "anyOf": [
+              {
+                "maximum": 200.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Role Requests"
+          },
+          "title": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "agents"
+        ],
+        "title": "SceneCreateRequest",
+        "type": "object"
+      },
+      "SceneDetailView": {
+        "additionalProperties": false,
+        "description": "场景详情：场景 + 本场角色集合（含模板快照）。",
+        "properties": {
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/SceneAgent"
+            },
+            "title": "Agents",
+            "type": "array"
+          },
+          "locked": {
+            "title": "Locked",
+            "type": "boolean"
+          },
+          "scene": {
+            "$ref": "#/components/schemas/Scene"
+          }
+        },
+        "required": [
+          "scene",
+          "agents",
+          "locked"
+        ],
+        "title": "SceneDetailView",
+        "type": "object"
+      },
+      "SceneListView": {
+        "additionalProperties": false,
+        "properties": {
+          "scenes": {
+            "items": {
+              "$ref": "#/components/schemas/SceneSummaryView"
+            },
+            "title": "Scenes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "scenes"
+        ],
+        "title": "SceneListView",
+        "type": "object"
+      },
+      "SceneSummaryView": {
+        "additionalProperties": false,
+        "description": "场景列表项。",
+        "properties": {
+          "agent_count": {
+            "minimum": 0.0,
+            "title": "Agent Count",
+            "type": "integer"
+          },
+          "budget_locked": {
+            "title": "Budget Locked",
+            "type": "boolean"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "scene_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Scene Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scene_id",
+          "title",
+          "status",
+          "agent_count",
+          "budget_locked",
+          "created_at"
+        ],
+        "title": "SceneSummaryView",
+        "type": "object"
+      },
+      "SchedulerDirective": {
+        "additionalProperties": false,
+        "description": "一次调度决策，可复核（PRD 5.1）。不额外调用主持模型。",
+        "properties": {
+          "actor_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Actor Id",
+            "type": "string"
+          },
+          "based_on_seq": {
+            "minimum": 0,
+            "title": "Based On Seq",
+            "type": "integer"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/SchedulerReason"
+          },
+          "requested_by_agent_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Requested By Agent Id"
+          },
+          "scene_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Scene Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scene_id",
+          "actor_id",
+          "reason",
+          "based_on_seq"
+        ],
+        "title": "SchedulerDirective",
+        "type": "object"
+      },
+      "SchedulerReason": {
+        "description": "调度结果可复核（PRD 5.1）。",
+        "enum": [
+          "STARTUP_OPPORTUNITY",
+          "NEW_VISIBLE_INFORMATION",
+          "REQUESTED_SPEAKER_PRIORITY",
+          "ROUND_ROBIN"
+        ],
+        "title": "SchedulerReason",
+        "type": "string"
+      },
+      "TemplateCopyRequest": {
+        "additionalProperties": false,
+        "description": "复制角色模板；省略 ``name`` 时自动取第一个可用的不重复名称。",
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "title": "TemplateCopyRequest",
+        "type": "object"
+      },
+      "TemplateCreateRequest": {
+        "additionalProperties": false,
+        "description": "创建角色模板。",
+        "properties": {
+          "initial_goal": {
+            "title": "Initial Goal",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "persona": {
+            "title": "Persona",
+            "type": "string"
+          },
+          "private_background": {
+            "title": "Private Background",
+            "type": "string"
+          },
+          "speech_style": {
+            "title": "Speech Style",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "persona",
+          "speech_style",
+          "initial_goal",
+          "private_background"
+        ],
+        "title": "TemplateCreateRequest",
+        "type": "object"
+      },
+      "TemplateListView": {
+        "additionalProperties": false,
+        "description": "模板列表。",
+        "properties": {
+          "templates": {
+            "items": {
+              "$ref": "#/components/schemas/AgentTemplate"
+            },
+            "title": "Templates",
+            "type": "array"
+          }
+        },
+        "required": [
+          "templates"
+        ],
+        "title": "TemplateListView",
+        "type": "object"
+      },
+      "TemplateUpdateRequest": {
+        "additionalProperties": false,
+        "description": "编辑角色模板（部分字段）。``None`` 表示不修改。",
+        "properties": {
+          "initial_goal": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Initial Goal"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 30,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "persona": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Persona"
+          },
+          "private_background": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Private Background"
+          },
+          "speech_style": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speech Style"
+          }
+        },
+        "title": "TemplateUpdateRequest",
+        "type": "object"
+      },
+      "TimelineEntry": {
+        "additionalProperties": false,
+        "description": "时间线条目：消息与事件共享场景内单调 ``seq``。\n\n分析报告、错误、使用量、SSE 心跳和运行状态**不属于剧情**，因此不是\nTimelineEntry 的类型之一（PRD 4.1）。",
+        "properties": {
+          "event": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Event"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "kind": {
+            "pattern": "^(message|event)$",
+            "title": "Kind",
+            "type": "string"
+          },
+          "seq": {
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "seq"
+        ],
+        "title": "TimelineEntry",
+        "type": "object"
+      },
+      "TimelineEntryView": {
+        "additionalProperties": false,
+        "description": "时间线条目：消息与事件共享 ``seq``（PRD 第 8 节）。",
+        "properties": {
+          "author_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author Name"
+          },
+          "event": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Event"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kind": {
+            "pattern": "^(message|event)$",
+            "title": "Kind",
+            "type": "string"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Message"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "seq": {
+            "minimum": 1.0,
+            "title": "Seq",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "seq"
+        ],
+        "title": "TimelineEntryView",
+        "type": "object"
+      },
+      "TimelineView": {
+        "additionalProperties": false,
+        "description": "时间线（含预算与运行状态，便于历史页只读渲染）。",
+        "properties": {
+          "analysis_requests_used": {
+            "minimum": 0.0,
+            "title": "Analysis Requests Used",
+            "type": "integer"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/TimelineEntryView"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "last_seq": {
+            "minimum": 0.0,
+            "title": "Last Seq",
+            "type": "integer"
+          },
+          "max_analysis_requests": {
+            "minimum": 0.0,
+            "title": "Max Analysis Requests",
+            "type": "integer"
+          },
+          "max_role_requests": {
+            "minimum": 0.0,
+            "title": "Max Role Requests",
+            "type": "integer"
+          },
+          "role_requests_used": {
+            "minimum": 0.0,
+            "title": "Role Requests Used",
+            "type": "integer"
+          },
+          "scene_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Scene Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          }
+        },
+        "required": [
+          "scene_id",
+          "status",
+          "last_seq",
+          "role_requests_used",
+          "max_role_requests",
+          "analysis_requests_used",
+          "max_analysis_requests",
+          "entries"
+        ],
+        "title": "TimelineView",
+        "type": "object"
+      },
+      "TurnStatus": {
+        "description": "一次角色调用的落盘结果；只有 SUCCEEDED 才推进已处理位置（PRD 5.1）。",
+        "enum": [
+          "SUCCEEDED",
+          "FAILED",
+          "UNKNOWN"
+        ],
+        "title": "TurnStatus",
+        "type": "string"
+      },
+      "Usage": {
+        "additionalProperties": false,
+        "description": "用量。以服务端返回为准，**缺失记为 unknown，不是 0**（PRD 5.3）。\n\n本期不承诺货币费用；只记录原始用量，缓存命中字段在返回时记录。",
+        "properties": {
+          "cached_tokens": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cached Tokens"
+          },
+          "input_tokens": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Tokens"
+          },
+          "output_tokens": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Tokens"
+          }
+        },
+        "title": "Usage",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "ViewpointView": {
+        "additionalProperties": false,
+        "description": "角色视角（PRD 7.2）：与调用器**实际使用相同**的上下文选择结果。",
+        "properties": {
+          "agent_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "agent_name": {
+            "title": "Agent Name",
+            "type": "string"
+          },
+          "cutoff_seq": {
+            "minimum": 0.0,
+            "title": "Cutoff Seq",
+            "type": "integer"
+          },
+          "prompt": {
+            "title": "Prompt",
+            "type": "string"
+          },
+          "prompt_template_id": {
+            "title": "Prompt Template Id",
+            "type": "string"
+          },
+          "public_roster": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Public Roster",
+            "type": "array"
+          },
+          "scene_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Scene Id",
+            "type": "string"
+          },
+          "visible_kinds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Visible Kinds",
+            "type": "array"
+          },
+          "visible_seq": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Visible Seq",
+            "type": "array"
+          }
+        },
+        "required": [
+          "scene_id",
+          "agent_id",
+          "agent_name",
+          "prompt_template_id",
+          "cutoff_seq",
+          "public_roster",
+          "visible_seq",
+          "visible_kinds",
+          "prompt"
+        ],
+        "title": "ViewpointView",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "SceneWeave（角色互动沙盒）后端。M00 提供工程基础与公共契约；M01 提供角色模板与场景配置；M02/M03 提供可见性、调度与模型适配；M04 提供运行控制、事件、时间线、角色视角与 SSE；M06 提供只读行为分析。",
+    "title": "SceneWeave",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/contracts/summary": {
+      "get": {
+        "operationId": "contracts_summary_api_contracts_summary_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContractSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "契约自检摘要（枚举、长度上限、预算、运行参数、端口）",
+        "tags": [
+          "m00"
+        ]
+      }
+    },
+    "/api/health": {
+      "get": {
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "最小健康检查",
+        "tags": [
+          "m00"
+        ]
+      }
+    },
+    "/api/scenes": {
+      "get": {
+        "operationId": "list_scenes_api_scenes_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SceneListView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Scenes",
+        "tags": [
+          "m01-scenes"
+        ]
+      },
+      "post": {
+        "operationId": "create_scene_api_scenes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SceneCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SceneDetailView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Scene",
+        "tags": [
+          "m01-scenes"
+        ]
+      }
+    },
+    "/api/scenes/preset": {
+      "post": {
+        "description": "用预置“三个室友的客厅”创建会话（PRD 3.1）。",
+        "operationId": "create_preset_scene_api_scenes_preset_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PresetSceneCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SceneDetailView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Preset Scene",
+        "tags": [
+          "m01-scenes"
+        ]
+      }
+    },
+    "/api/scenes/presets": {
+      "get": {
+        "description": "列出可用预置场景。属于配置期只读数据，不调用模型。",
+        "operationId": "list_presets_api_scenes_presets_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PresetListView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Presets",
+        "tags": [
+          "m01-scenes"
+        ]
+      }
+    },
+    "/api/scenes/{scene_id}": {
+      "get": {
+        "operationId": "get_scene_api_scenes__scene_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scene_id",
+            "required": true,
+            "schema": {
+              "title": "Scene Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SceneDetailView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Scene",
+        "tags": [
+          "m01-scenes"
+        ]
+      }
+    },
+    "/api/scenes/{scene_id}/agents": {
+      "post": {
+        "operationId": "add_agent_api_scenes__scene_id__agents_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scene_id",
+            "required": true,
+            "schema": {
+              "title": "Scene Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SceneAgent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Agent",
+        "tags": [
+          "m01-scenes"
+        ]
+      }
+    },
+    "/api/scenes/{scene_id}/agents/status": {
+      "get": {
+        "description": "每个本场角色的执行状态（PRD 7.1：角色卡只显示名称与执行状态）。\n\n只读观察：不调用模型，不产生任何剧情事实。",
+        "operationId": "agent_status_api_scenes__scene_id__agents_status_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scene_id",
+            "required": true,
+            "schema": {
+              "title": "Scene Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentStatusListView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Agent Status",
+        "tags": [
+          "m04-runtime"
+        ]
+      }
+    },
+    "/api/scenes/{scene_id}/agents/{agent_id}": {
+      "delete": {
+        "operationId": "remove_agent_api_scenes__scene_id__agents__agent_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scene_id",
+            "required": true,
+            "schema": {
+              "title": "Scene Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Agent",
+        "tags": [
+          "m01-scenes"
+        ]
+      },
+      "patch": {
+        "operationId": "rename_agent_api_scenes__scene_id__agents__agent_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scene_id",
+            "required": true,
+            "schema": {
+              "title": "Scene Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentRenameRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SceneAgent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rename Agent",
+        "tags": [
+          "m01-scenes"
+        ]
+      }
+    },
+    "/api/scenes/{scene_id}/agents/{agent_id}/viewpoint": {
+      "get": {
+        "description": "角色视角：与调用器**同一** ContextBuilder 的输出（PRD 7.2）。",
+        "operationId": "viewpoint_api_scenes__scene_id__agents__agent_id__viewpoint_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scene_id",
+            "required": true,
+            "schema": {
+              "title": "Scene Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewpointView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Viewpoint",
+        "tags": [
+          "m04-runtime"
+        ]
+      }
+    },
+    "/api/scenes/{scene_id}/analyses": {
+      "get": {
+        "description": "列出分析记录，并把操作数与实际模型请求数分开呈现（PRD 5.3）。",
+        "operationId": "list_analyses_api_scenes__scene_id__analyses_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scene_id",
+            "required": true,
+            "schema": {
+              "title": "Scene Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "agent_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Agent Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisListView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Analyses",
+        "tags": [
+          "m06-analysis"
+        ]
+      },
+      "post": {
+        "description": "执行一次分析。\n\n结果有三种“没有真正调用模型”的可能：`BLOCKED`（本地边界规则，含超长与预算耗尽）、\n`DISABLED`（能力关闭或外部包不可用）；两者 `provider_attempts=0`。",
+        "operationId": "create_analysis_api_scenes__scene_id__analyses_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scene_id",
+            "required": true,
+            "schema": {
+              "title": "Scene Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisRecordView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Analysis",
+        "tags": [
+          "m06-analysis"
+        ]
+      }
+    },
+    "/api/scenes/{scene_id}/analyses/capability": {
+      "get": {
+        "description": "分析能力是否可用，以及不可用的具体原因。",
+        "operationId": "analysis_capability_api_scenes__scene_id__analyses_capability_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scene_id",
+            "required": true,
+            "schema": {
+              "title": "Scene Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisCapabilityView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Analysis Capability",
+        "tags": [
+          "m06-analysis"
+        ]
+      }
+    },
+    "/api/scenes/{scene_id}/commands": {
+      "post": {
+        "description": "控制命令：`START`／`STEP`／`PAUSE`／`RESUME`／`STOP`（幂等）。",
+        "operationId": "run_command_api_scenes__scene_id__commands_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scene_id",
+            "required": true,
+            "schema": {
+              "title": "Scene Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ControlCommandRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAck"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Command",
+        "tags": [
+          "m04-runtime"
+        ]
+      }
+    },
+    "/api/scenes/{scene_id}/events": {
+      "get": {
+        "description": "列出全部事件及其状态（界面区分已接受／已生效）。",
+        "operationId": "list_events_api_scenes__scene_id__events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scene_id",
+            "required": true,
+            "schema": {
+              "title": "Scene Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EventView"
+                  },
+                  "title": "Response List Events Api Scenes  Scene Id  Events Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Events",
+        "tags": [
+          "m04-runtime"
+        ]
+      },
+      "post": {
+        "description": "提交人工事件；暂停时立即生效但不自动继续（PRD 4.3）。",
+        "operationId": "inject_event_api_scenes__scene_id__events_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scene_id",
+            "required": true,
+            "schema": {
+              "title": "Scene Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InjectEventRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandAck"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Inject Event",
+        "tags": [
+          "m04-runtime"
+        ]
+      }
+    },
+    "/api/scenes/{scene_id}/state": {
+      "get": {
+        "description": "运行状态与预算（含是否有在途调用）。",
+        "operationId": "run_state_api_scenes__scene_id__state_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scene_id",
+            "required": true,
+            "schema": {
+              "title": "Scene Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunStateView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run State",
+        "tags": [
+          "m04-runtime"
+        ]
+      }
+    },
+    "/api/scenes/{scene_id}/stream": {
+      "get": {
+        "description": "SSE：按 ``seq`` 补发已提交时间线，支持断线追赶与去重（PRD 第 8 节）。\n\n- 每条：``id: <seq>`` + ``event: timeline`` + JSON 数据；\n- 心跳为注释行，**不进入剧情**；\n- ``replay_limit`` 用于有界追赶（补发满 N 条后关闭，客户端可再连）。",
+        "operationId": "stream_api_scenes__scene_id__stream_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scene_id",
+            "required": true,
+            "schema": {
+              "title": "Scene Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since_seq",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Since Seq",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "replay_limit",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 1000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Replay Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Stream",
+        "tags": [
+          "m04-runtime"
+        ]
+      }
+    },
+    "/api/scenes/{scene_id}/summary": {
+      "get": {
+        "description": "实际调用计数与失败统计（PRD 1.2 的「实际调用计数」）。",
+        "operationId": "scenario_summary_api_scenes__scene_id__summary_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scene_id",
+            "required": true,
+            "schema": {
+              "title": "Scene Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioSummaryView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Scenario Summary",
+        "tags": [
+          "m04-runtime"
+        ]
+      }
+    },
+    "/api/scenes/{scene_id}/timeline": {
+      "get": {
+        "description": "历史/时间线：**只读**已保存数据，不调用模型（PRD 5.4）。",
+        "operationId": "timeline_api_scenes__scene_id__timeline_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scene_id",
+            "required": true,
+            "schema": {
+              "title": "Scene Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since_seq",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Since Seq",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimelineView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Timeline",
+        "tags": [
+          "m04-runtime"
+        ]
+      }
+    },
+    "/api/templates": {
+      "get": {
+        "operationId": "list_templates_api_templates_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateListView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Templates",
+        "tags": [
+          "m01-templates"
+        ]
+      },
+      "post": {
+        "operationId": "create_template_api_templates_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentTemplate"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Template",
+        "tags": [
+          "m01-templates"
+        ]
+      }
+    },
+    "/api/templates/{template_id}": {
+      "delete": {
+        "operationId": "delete_template_api_templates__template_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "title": "Template Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Template",
+        "tags": [
+          "m01-templates"
+        ]
+      },
+      "get": {
+        "operationId": "get_template_api_templates__template_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "title": "Template Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentTemplate"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Template",
+        "tags": [
+          "m01-templates"
+        ]
+      },
+      "patch": {
+        "operationId": "update_template_api_templates__template_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "title": "Template Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentTemplate"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Template",
+        "tags": [
+          "m01-templates"
+        ]
+      }
+    },
+    "/api/templates/{template_id}/copy": {
+      "post": {
+        "operationId": "copy_template_api_templates__template_id__copy_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "title": "Template Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemplateCopyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentTemplate"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Copy Template",
+        "tags": [
+          "m01-templates"
+        ]
+      }
+    }
+  }
+}

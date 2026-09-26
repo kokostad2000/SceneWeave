@@ -1,0 +1,39 @@
+[project]
+name = "role-theater"
+version = "0.1.0"
+description = "SceneWeave（角色互动沙盒）后端——M00 工程与契约基线"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi>=0.115,<1.0",
+    "uvicorn[standard]>=0.30,<1.0",
+    "pydantic>=2.9,<3.0",
+    "pydantic-settings>=2.5,<3.0",
+]
+
+[project.optional-dependencies]
+# 行为分析外部依赖在 M06 通过 uv 的 --optional 方式锁定提交；
+# M00 不安装，也不得要求已安装（PRD 6.2）。
+analysis = []
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3,<9.0",
+    "pytest-asyncio>=0.24,<2.0",
+    "httpx>=0.27,<1.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["role_theater"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-q"
+
+[tool.uv]
+package = true

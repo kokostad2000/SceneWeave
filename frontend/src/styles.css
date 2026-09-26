@@ -1,0 +1,306 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  line-height: 1.6;
+}
+
+body {
+  margin: 0;
+  background: #0f1115;
+  color: #e7e9ee;
+}
+
+.page {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+}
+
+.page__header h1 {
+  margin: 0;
+  font-size: 1.75rem;
+}
+
+.page__subtitle {
+  margin: 0.25rem 0 0.75rem;
+  color: #9aa3b2;
+}
+
+.badge {
+  display: inline-block;
+  margin: 0;
+  padding: 0.15rem 0.6rem;
+  border: 1px solid #3a4152;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  color: #9aa3b2;
+}
+
+.card {
+  margin-top: 1.5rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid #262c38;
+  border-radius: 0.75rem;
+  background: #161a22;
+}
+
+.card h2 {
+  margin-top: 0;
+  font-size: 1.05rem;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.35rem 1.25rem;
+  margin: 0;
+}
+
+.facts dt {
+  color: #9aa3b2;
+}
+
+.facts dd {
+  margin: 0;
+}
+
+.state {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.state--error {
+  background: #3a1d20;
+  color: #ffb4b4;
+}
+
+.hint {
+  color: #9aa3b2;
+  font-size: 0.9rem;
+}
+
+code {
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.25rem;
+  background: #202634;
+}
+
+/* --- M05 界面结构 --- */
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.tab {
+  padding: 0.3rem 0.9rem;
+  border: 1px solid #3a4152;
+  border-radius: 999px;
+  background: transparent;
+  color: #cbd2de;
+  cursor: pointer;
+}
+
+.tab--active {
+  background: #2a3550;
+  border-color: #4b6bd6;
+  color: #ffffff;
+}
+
+.panel,
+.controls,
+.drawer {
+  margin-top: 1.25rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid #262c38;
+  border-radius: 0.75rem;
+  background: #161a22;
+}
+
+.panel h2 {
+  margin-top: 0;
+  font-size: 1.05rem;
+}
+
+.tone-running { background: #18351f; color: #9ae6a8; }
+.tone-transition { background: #3a331d; color: #ffdd9a; }
+.tone-paused { background: #2a2f4a; color: #c3ccff; }
+.tone-ended { background: #2b2b2b; color: #b9b9b9; }
+
+.state--reason { background: #2a2f4a; color: #c3ccff; }
+.state--pending { background: #3a331d; color: #ffdd9a; }
+
+.state--mock {
+  background: #3d2a12;
+  color: #ffcb8a;
+  border: 1px solid #8a5a1e;
+}
+
+.tag {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 0.3rem;
+  background: #232a38;
+  color: #9fb0cc;
+  font-size: 0.78rem;
+}
+
+.tag--targeted,
+.tag--visibility { background: #2b2140; color: #d3b3ff; }
+.tag--pending { background: #3a331d; color: #ffdd9a; }
+.tag--requested { background: #1d3340; color: #9fd8ff; }
+.tag--reply { background: #22303a; color: #9ad4e6; }
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.2rem 0;
+}
+
+.row__actions { display: flex; gap: 0.4rem; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 0.6rem;
+}
+
+.field { display: block; margin: 0.4rem 0; }
+.field > span { display: block; color: #9aa3b2; font-size: 0.85rem; }
+
+textarea { min-height: 4rem; }
+.input--invalid { border-color: #a1444a; }
+
+.timeline { margin: 0; padding: 0; list-style: none; }
+.timeline__item { margin-bottom: 0.85rem; }
+
+.timeline__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: #9aa3b2;
+}
+
+.timeline__seq { color: #6f7c92; font-variant-numeric: tabular-nums; }
+.timeline__author { color: #cfd7e6; }
+
+.bubble {
+  margin: 0.25rem 0 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.6rem;
+  background: #1d2430;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.bubble--event {
+  background: #2a2140;
+  border-left: 3px solid #8b6bd6;
+}
+
+.timeline__item--targeted .bubble--event { background: #33234a; border-left-color: #b98bff; }
+.timeline__item--pending .bubble--event { border-left-style: dashed; opacity: 0.85; }
+
+.chat__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.chat__header h2 { margin: 0; font-size: 1.1rem; }
+
+.chat__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 16rem;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+@media (max-width: 60rem) {
+  .chat__body { grid-template-columns: 1fr; }
+}
+
+.sidebar {
+  padding: 0.75rem 1rem;
+  border: 1px solid #262c38;
+  border-radius: 0.75rem;
+  background: #161a22;
+  align-self: start;
+}
+
+.sidebar__list { margin: 0; padding: 0; list-style: none; }
+
+.role-card {
+  display: block;
+  width: 100%;
+  margin-bottom: 0.4rem;
+  padding: 0.5rem 0.65rem;
+  text-align: left;
+}
+
+.role-card--active { border-color: #4b6bd6; }
+.role-card--requested { border-color: #2f7fa8; box-shadow: inset 0 0 0 1px #2f7fa8; }
+.role-card__name { display: block; font-weight: 600; }
+.role-card__state,
+.role-card__meta { display: block; font-size: 0.8rem; color: #9aa3b2; }
+
+.controls__row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.controls__row--event { margin-top: 0.6rem; }
+.controls__input { flex: 1 1 18rem; }
+.controls__note { color: #9aa3b2; font-size: 0.85rem; }
+
+.prompt-view {
+  max-height: 22rem;
+  overflow: auto;
+  padding: 0.75rem;
+  border: 1px solid #2a3140;
+  border-radius: 0.5rem;
+  background: #0d1117;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.82rem;
+}
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(32rem, 92vw);
+  margin: 0;
+  overflow: auto;
+  border-radius: 0;
+  border-left: 1px solid #39404f;
+  z-index: 10;
+}
+
+.drawer__header { display: flex; align-items: center; justify-content: space-between; }
+
+.drawer__materials {
+  max-height: 16rem;
+  overflow: auto;
+  border: 1px solid #2a3140;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.drawer__material { display: block; font-size: 0.88rem; }
+.drawer__material input { width: auto; }
+
+.snapshot-list { margin: 0; padding-left: 1.1rem; }
+.snapshot-list li { margin-bottom: 0.3rem; }
+
+.page__footer {
+  margin-top: 2.5rem;
+  border-top: 1px solid #262c38;
+  padding-top: 0.75rem;
+}

@@ -1,0 +1,64 @@
+"""长度上限、版本标识与运行参数常量。
+
+所有长度均按 **Unicode 码点** 计数（Python ``len()`` 即为码点数，等价于前端
+``[...s].length``）。空白先裁剪、后校验。
+"""
+
+from __future__ import annotations
+
+# --- 版本标识（B2：长期版本策略待人工确认，此处为 M00 临时标识）---
+CONTRACT_VERSION = "m00.1"
+SCHEMA_VERSION = 1
+APP_NAME = "SceneWeave"
+APP_VERSION = "0.1.0"
+
+# --- 角色集合规模（PRD 1.2 / 3.2）---
+MIN_AGENTS_PER_SCENE = 2
+MAX_AGENTS_PER_SCENE = 8
+DEFAULT_AGENTS_PER_SCENE = 3
+
+# --- 文本长度上限，单位：Unicode 码点（PRD 3.3 / 4.2 / 6.2）---
+MAX_AGENT_NAME_CODEPOINTS = 30
+MAX_PERSONA_CODEPOINTS = 1000
+MAX_SPEECH_STYLE_CODEPOINTS = 300
+MAX_INITIAL_GOAL_CODEPOINTS = 500
+MAX_PRIVATE_BACKGROUND_CODEPOINTS = 1000
+MAX_SCENE_BACKGROUND_CODEPOINTS = 2000
+MAX_EVENT_BODY_CODEPOINTS = 1000
+MIN_SPEAK_TEXT_CODEPOINTS = 1
+MAX_SPEAK_TEXT_CODEPOINTS = 200
+MAX_ANALYSIS_BEHAVIOR_DESCRIPTION_CODEPOINTS = 4000
+MAX_ANALYSIS_CONTEXT_CODEPOINTS = 4000
+MAX_ANALYSIS_MATERIAL_ITEMS = 200
+
+# --- 预算（PRD 5.3）---
+MAX_ROLE_REQUESTS_PER_SCENE = 24
+MAX_ANALYSIS_REQUESTS_PER_SCENE = 4
+MIN_SCENE_REQUEST_LIMIT = 1
+MAX_SCENE_REQUEST_LIMIT = 200
+
+# --- 模型运行参数初值（PRD 2.2 / 5.3）；不是性能承诺 ---
+DEFAULT_MODEL_NAME = "deepseek-flash"
+LEGACY_MODEL_ALIAS = "deepseek-v4-flash"
+MAX_OUTPUT_TOKENS = 1024
+REQUEST_TIMEOUT_SECONDS = 90
+SDK_MAX_RETRIES = 0
+MAX_PROMPT_CHARS = 32000
+THINKING_ENABLED_BY_DEFAULT = False
+STREAM_BY_DEFAULT = False
+RESPONSE_FORMAT_JSON_OBJECT = "json_object"
+SEND_TOOLS = False
+
+# --- 其他 ---
+MIN_MESSAGE_SEQ = 1
+MAX_ID_CODEPOINTS = 64
+
+
+def codepoint_length(value: str) -> int:
+    """返回字符串的 Unicode 码点数量。
+
+    与前端 ``codepointLength()``（``[...value].length``）保持一致，
+    避免前端按 UTF-16 长度、后端按码点校验造成不一致（PRD 3.3）。
+    """
+
+    return len(value)

@@ -1,0 +1,40 @@
+# Python / uv
+__pycache__/
+*.py[cod]
+.venv/
+backend/.venv/
+*.egg-info/
+
+# Node / pnpm
+node_modules/
+frontend/dist/
+frontend/node_modules/
+
+# 本地缓存（DSH 沙箱下 uv／pnpm 需要写在项目内）
+.cache/
+
+# 本地数据库与运行时产物（SQLite 属于本地状态，不入库）
+*.db
+*.db-journal
+*.sqlite3
+
+# 编辑器与系统
+.DS_Store
+.idea/
+.vscode/
+
+# 本地环境变量（绝不提交密钥）
+.env
+.env.*
+# 但模板必须入库：只有变量名，没有值
+!.env.example
+
+# Vite 缓存
+frontend/.vite/
+.vite/
+
+# 日志
+*.log
+
+# 本地备份产物
+state/backups/

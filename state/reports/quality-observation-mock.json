@@ -1,0 +1,404 @@
+{
+  "preset_scenes_defined": 3,
+  "preset_scenes_required_by_prd10": 3,
+  "runs_per_scene": 3,
+  "engine": "deterministic-mock",
+  "runs": [
+    {
+      "preset_key": "roommates",
+      "scene": "三个室友的客厅",
+      "run": 1,
+      "turns": [
+        {
+          "actor": "安然",
+          "action": "SPEAK",
+          "text": "今晚要不要一起吃饭？",
+          "responds_to_previous": false,
+          "mentions_other_private_fact": false
+        },
+        {
+          "actor": "许川",
+          "action": "SPEAK",
+          "text": "我今天挺累的，想先歇一会儿。",
+          "responds_to_previous": true,
+          "mentions_other_private_fact": false
+        },
+        {
+          "actor": "陈禾",
+          "action": "PASS",
+          "text": "",
+          "responds_to_previous": false,
+          "mentions_other_private_fact": false
+        },
+        {
+          "actor": "安然",
+          "action": "PASS",
+          "text": "",
+          "responds_to_previous": false,
+          "mentions_other_private_fact": false
+        }
+      ],
+      "stats": {
+        "turns": 4,
+        "speeches": 2,
+        "passes": 2,
+        "allows_silence": true,
+        "later_speeches_reference_context": true,
+        "leaks_other_private_fact": false,
+        "repeated_phrases": []
+      }
+    },
+    {
+      "preset_key": "roommates",
+      "scene": "三个室友的客厅",
+      "run": 2,
+      "turns": [
+        {
+          "actor": "安然",
+          "action": "SPEAK",
+          "text": "今晚要不要一起吃饭？",
+          "responds_to_previous": false,
+          "mentions_other_private_fact": false
+        },
+        {
+          "actor": "许川",
+          "action": "SPEAK",
+          "text": "我今天挺累的，想先歇一会儿。",
+          "responds_to_previous": true,
+          "mentions_other_private_fact": false
+        },
+        {
+          "actor": "陈禾",
+          "action": "PASS",
+          "text": "",
+          "responds_to_previous": false,
+          "mentions_other_private_fact": false
+        },
+        {
+          "actor": "安然",
+          "action": "PASS",
+          "text": "",
+          "responds_to_previous": false,
+          "mentions_other_private_fact": false
+        }
+      ],
+      "stats": {
+        "turns": 4,
+        "speeches": 2,
+        "passes": 2,
+        "allows_silence": true,
+        "later_speeches_reference_context": true,
+        "leaks_other_private_fact": false,
+        "repeated_phrases": []
+      }
+    },
+    {
+      "preset_key": "roommates",
+      "scene": "三个室友的客厅",
+      "run": 3,
+      "turns": [
+        {
+          "actor": "安然",
+          "action": "SPEAK",
+          "text": "今晚要不要一起吃饭？",
+          "responds_to_previous": false,
+          "mentions_other_private_fact": false
+        },
+        {
+          "actor": "许川",
+          "action": "SPEAK",
+          "text": "我今天挺累的，想先歇一会儿。",
+          "responds_to_previous": true,
+          "mentions_other_private_fact": false
+        },
+        {
+          "actor": "陈禾",
+          "action": "PASS",
+          "text": "",
+          "responds_to_previous": false,
+          "mentions_other_private_fact": false
+        },
+        {
+          "actor": "安然",
+          "action": "PASS",
+          "text": "",
+          "responds_to_previous": false,
+          "mentions_other_private_fact": false
+        }
+      ],
+      "stats": {
+        "turns": 4,
+        "speeches": 2,
+        "passes": 2,
+        "allows_silence": true,
+        "later_speeches_reference_context": true,
+        "leaks_other_private_fact": false,
+        "repeated_phrases": []
+      }
+    },
+    {
+      "preset_key": "convenience_store",
+      "scene": "深夜便利店的三个顾客",
+      "run": 1,
+      "turns": [
+        {
+          "actor": "林小满",
+          "action": "SPEAK",
+          "text": "今晚要不要一起吃饭？",
+          "responds_to_previous": false,
+          "mentions_other_private_fact": false
+        },
+        {
+          "actor": "周远",
+          "action": "SPEAK",
+          "text": "我今天挺累的，想先歇一会儿。",
+          "responds_to_previous": true,
+          "mentions_other_private_fact": false
+        },
+        {
+          "actor": "郑好",
+          "action": "PASS",
+          "text": "",
+          "responds_to_previous": false,
+          "mentions_other_private_fact": false
+        },
+        {
+          "actor": "林小满",
+          "action": "PASS",
+          "text": "",
+          "responds_to_previous": false,
+          "mentions_other_private_fact": false
+        }
+      ],
+      "stats": {
+        "turns": 4,
+        "speeches": 2,
+        "passes": 2,
+        "allows_silence": true,
+        "later_speeches_reference_context": true,
+        "leaks_other_private_fact": false,
+        "repeated_phrases": []
+      }
+    },
+    {
+      "preset_key": "convenience_store",
+      "scene": "深夜便利店的三个顾客",
+      "run": 2,
+      "turns": [
+        {
+          "actor": "林小满",
+          "action": "SPEAK",
+          "text": "今晚要不要一起吃饭？",
+          "responds_to_previous": false,
+          "mentions_other_private_fact": false
+        },
+        {
+          "actor": "周远",
+          "action": "SPEAK",
+          "text": "我今天挺累的，想先歇一会儿。",
+          "responds_to_previous": true,
+          "mentions_other_private_fact": false
+        },
+        {
+          "actor": "郑好",
+          "action": "PASS",
+          "text": "",
+          "responds_to_previous": false,
+          "mentions_other_private_fact": false
+        },
+        {
+          "actor": "林小满",
+          "action": "PASS",
+          "text": "",
+          "responds_to_previous": false,
+          "mentions_other_private_fact": false
+        }
+      ],
+      "stats": {
+        "turns": 4,
+        "speeches": 2,
+        "passes": 2,
+        "allows_silence": true,
+        "later_speeches_reference_context": true,
+        "leaks_other_private_fact": false,
+        "repeated_phrases": []
+      }
+    },
+    {
+      "preset_key": "convenience_store",
+      "scene": "深夜便利店的三个顾客",
+      "run": 3,
+      "turns": [
+        {
+          "actor": "林小满",
+          "action": "SPEAK",
+          "text": "今晚要不要一起吃饭？",
+          "responds_to_previous": false,
+          "mentions_other_private_fact": false
+        },
+        {
+          "actor": "周远",
+          "action": "SPEAK",
+          "text": "我今天挺累的，想先歇一会儿。",
+          "responds_to_previous": true,
+          "mentions_other_private_fact": false
+        },
+        {
+          "actor": "郑好",
+          "action": "PASS",
+          "text": "",
+          "responds_to_previous": false,
+          "mentions_other_private_fact": false
+        },
+        {
+          "actor": "林小满",
+          "action": "PASS",
+          "text": "",
+          "responds_to_previous": false,
+          "mentions_other_private_fact": false
+        }
+      ],
+      "stats": {
+        "turns": 4,
+        "speeches": 2,
+        "passes": 2,
+        "allows_silence": true,
+        "later_speeches_reference_context": true,
+        "leaks_other_private_fact": false,
+        "repeated_phrases": []
+      }
+    },
+    {
+      "preset_key": "campsite",
+      "scene": "周末露营地的三个人",
+      "run": 1,
+      "turns": [
+        {
+          "actor": "何澜",
+          "action": "SPEAK",
+          "text": "今晚要不要一起吃饭？",
+          "responds_to_previous": false,
+          "mentions_other_private_fact": false
+        },
+        {
+          "actor": "苏木",
+          "action": "SPEAK",
+          "text": "我今天挺累的，想先歇一会儿。",
+          "responds_to_previous": true,
+          "mentions_other_private_fact": false
+        },
+        {
+          "actor": "涂山",
+          "action": "PASS",
+          "text": "",
+          "responds_to_previous": false,
+          "mentions_other_private_fact": false
+        },
+        {
+          "actor": "何澜",
+          "action": "PASS",
+          "text": "",
+          "responds_to_previous": false,
+          "mentions_other_private_fact": false
+        }
+      ],
+      "stats": {
+        "turns": 4,
+        "speeches": 2,
+        "passes": 2,
+        "allows_silence": true,
+        "later_speeches_reference_context": true,
+        "leaks_other_private_fact": false,
+        "repeated_phrases": []
+      }
+    },
+    {
+      "preset_key": "campsite",
+      "scene": "周末露营地的三个人",
+      "run": 2,
+      "turns": [
+        {
+          "actor": "何澜",
+          "action": "SPEAK",
+          "text": "今晚要不要一起吃饭？",
+          "responds_to_previous": false,
+          "mentions_other_private_fact": false
+        },
+        {
+          "actor": "苏木",
+          "action": "SPEAK",
+          "text": "我今天挺累的，想先歇一会儿。",
+          "responds_to_previous": true,
+          "mentions_other_private_fact": false
+        },
+        {
+          "actor": "涂山",
+          "action": "PASS",
+          "text": "",
+          "responds_to_previous": false,
+          "mentions_other_private_fact": false
+        },
+        {
+          "actor": "何澜",
+          "action": "PASS",
+          "text": "",
+          "responds_to_previous": false,
+          "mentions_other_private_fact": false
+        }
+      ],
+      "stats": {
+        "turns": 4,
+        "speeches": 2,
+        "passes": 2,
+        "allows_silence": true,
+        "later_speeches_reference_context": true,
+        "leaks_other_private_fact": false,
+        "repeated_phrases": []
+      }
+    },
+    {
+      "preset_key": "campsite",
+      "scene": "周末露营地的三个人",
+      "run": 3,
+      "turns": [
+        {
+          "actor": "何澜",
+          "action": "SPEAK",
+          "text": "今晚要不要一起吃饭？",
+          "responds_to_previous": false,
+          "mentions_other_private_fact": false
+        },
+        {
+          "actor": "苏木",
+          "action": "SPEAK",
+          "text": "我今天挺累的，想先歇一会儿。",
+          "responds_to_previous": true,
+          "mentions_other_private_fact": false
+        },
+        {
+          "actor": "涂山",
+          "action": "PASS",
+          "text": "",
+          "responds_to_previous": false,
+          "mentions_other_private_fact": false
+        },
+        {
+          "actor": "何澜",
+          "action": "PASS",
+          "text": "",
+          "responds_to_previous": false,
+          "mentions_other_private_fact": false
+        }
+      ],
+      "stats": {
+        "turns": 4,
+        "speeches": 2,
+        "passes": 2,
+        "allows_silence": true,
+        "later_speeches_reference_context": true,
+        "leaks_other_private_fact": false,
+        "repeated_phrases": []
+      }
+    }
+  ]
+}
