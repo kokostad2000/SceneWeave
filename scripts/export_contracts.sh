@@ -12,10 +12,17 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [[ -z "${UV_CACHE_DIR:-}" ]]; then
+  export UV_CACHE_DIR="$ROOT_DIR/.cache/uv"
+fi
 
 echo "==> 后端：导出 OpenAPI 与契约摘要"
 cd "$ROOT_DIR/backend"
-uv run python scripts/export_contracts.py
+if [[ -x .venv/bin/python ]]; then
+  .venv/bin/python scripts/export_contracts.py
+else
+  uv run python scripts/export_contracts.py
+fi
 
 echo "==> 前端：由 OpenAPI 生成 TypeScript 类型"
 cd "$ROOT_DIR/frontend"
