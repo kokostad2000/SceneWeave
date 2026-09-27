@@ -84,6 +84,12 @@ def evaluate_selection(
     others = [item for item in selected if item.author_agent_id != agent_id]
 
     behavior_description = "\n".join(_render_message(item) for item in own_speech)
+    if behavior_description:
+        behavior_description = (
+            f"分析对象：{agent_name}。仅分析此角色的公开发言行为；"
+            "其他角色的发言和事件只用于理解情境，不要将其行为归给分析对象。\n"
+            f"{behavior_description}"
+        )
     context = "\n".join(
         _render_event(item) if item.kind is TimelineKind.EVENT else _render_message(item)
         for item in others

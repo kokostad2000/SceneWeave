@@ -44,6 +44,11 @@ SQLite（事实来源：模板、快照、事件、行动、请求结果、分�
 | `backend/role_theater/config.py` | 运行配置与预算常量（模型名、超时、重试、长度上限、SQLite 路径） | M00 |
 | `backend/role_theater/`（运行时） | ContextBuilder、Scheduler、状态机 | M02～M04 |
 | `backend/role_theater/analysis/` | 行为分析适配层，唯一允许导入外部 `behavior-psychology-v2.0` 的位置 | M06 |
+
+行为分析可选依赖锁定到上游提交 `bd1e8fa97b395223d629539022fbd92e1a5429d7`。
+适配层从 `src.analyzer` 加载 `DefaultBehaviorAnalyzer`，从 `src.schemas` 加载请求模型，
+并以显式配置和关闭隐式重试的 SDK 代理调用。上游安全边界在占用分析预算前检查；
+请求始终设置 `persist_profile=false`。未安装可选依赖或缺少真实模型配置时能力显示为关闭。
 | `backend/scripts/export_contracts.py` | 导出 `backend/openapi.json` 与前端契约摘要（无需密钥） | M00 |
 | `backend/tests/` | 后端测试（契约、失败路径、存储、状态机、幂等） | 各模块 |
 | `frontend/src/api/generated/` | 生成产物：`schema.d.ts`（OpenAPI 类型）、`contract-summary.json`（枚举／上限／端口） | M00（生成，勿手改） |
@@ -138,6 +143,11 @@ class AnalysisPort(Protocol):
 ### 3.6 运行参数（首版初值，非性能承诺）
 
 `model=deepseek-flash`、`stream=false`、`response_format=json_object`、显式关闭思考、不发送 tools；`max_output_tokens=1024`；请求总期限 90 秒；SDK 自动重试 **0**；`max_prompt_chars=32000`（保守字符限制，超过则暂停，不静默截断）。思考模式开启时温度参数无效——**不能用较低 temperature 推断思考已关闭**。不向公共 API 发送 `reasoning_effort=100`。
+
+真实角色调用与行为分析共用单次 **10,000,000 tokens** 上限：发送前用文本消息的
+UTF-8 字节数、4,096 token 包装余量及最大输出参数计算保守上界，超限不发送；
+服务端返回实际输入与输出用量后若报告超限，记录用量并标记失败。服务端未返回用量
+仍记为 unknown，不能声称实际消耗已被测量。
 
 ### 3.6.1 可替换模型适配器（PRD 第 8 节）
 

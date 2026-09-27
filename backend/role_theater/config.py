@@ -244,18 +244,26 @@ class Settings(BaseSettings):
 
         port = self.analysis_port
         enabled = getattr(port, "enabled", False)
-        reason = getattr(port, "capability", None)
+        capability = getattr(port, "capability", None)
         return AnalysisCapability(
             enabled=enabled,
-            external_package_installed=False,
-            reason=reason.reason if reason is not None else None,
+            external_package_installed=(
+                capability.external_package_installed if capability is not None else enabled
+            ),
+            reason=capability.reason if capability is not None else None,
         )
 
     @property
     def analysis_port(self):
         """按配置返回分析端口。M00 恒为 Disabled，不会导入外部包。"""
 
-        return load_analysis_port(enabled=self.analysis_enabled)
+        return load_analysis_port(
+            enabled=self.analysis_enabled,
+            provider=self.resolved_provider,
+            api_key=self.model_api_key.get_secret_value() if self.model_api_key_present else None,
+            base_url=self.model_base_url,
+            model=self.model_name,
+        )
 
 
 @lru_cache(maxsize=1)

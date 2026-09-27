@@ -67,6 +67,7 @@ def test_public_materials_are_split_into_self_and_context() -> None:
     )
 
     assert decision.allowed is True
+    assert decision.behavior_description.startswith("分析对象：安然。仅分析此角色")
     assert "#1" in decision.behavior_description
     assert "今晚一起吃饭吗？" in decision.behavior_description
     assert "我想先休息。" in decision.context

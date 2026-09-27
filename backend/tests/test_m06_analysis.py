@@ -338,12 +338,27 @@ def test_load_analysis_port_disabled_does_not_need_the_external_package() -> Non
     assert "未开启" in port.capability.reason
 
 
-def test_load_analysis_port_enabled_without_package_gives_a_concrete_reason() -> None:
+def test_load_analysis_port_enabled_without_real_model_gives_a_concrete_reason() -> None:
     from role_theater.ports import load_analysis_port
 
     port = load_analysis_port(enabled=True)
 
-    # 本环境未安装外部仓库：必须明确不可用，且原因可读。
+    assert port.enabled is False
+    assert "真实模型提供方" in port.capability.reason
+
+
+def test_load_analysis_port_reports_missing_external_package(monkeypatch) -> None:
+    from role_theater.ports import load_analysis_port
+    from role_theater.analysis import external
+
+    def unavailable(**kwargs):
+        raise ModuleNotFoundError("No module named 'src'")
+
+    monkeypatch.setattr(external, "build_upstream_port", unavailable)
+    port = load_analysis_port(
+        enabled=True, provider="deepseek", api_key="placeholder-not-real"
+    )
+
     assert port.enabled is False
     assert "外部分析仓库不可用" in port.capability.reason
     assert "src" in port.capability.reason
@@ -507,6 +522,43 @@ async def test_analysis_failure_does_not_break_chatting(database: Database) -> N
     assert ack.accepted is True
     scene = env.scene_repo.get_scene(env.scene_id)
     assert scene is not None and scene.status is RunState.PAUSED
+
+
+async def test_external_precheck_blocks_without_using_analysis_budget(database: Database) -> None:
+    analyzer = FakeAnalyzer(response=good_response())
+    env = build_env(database, analyzer=analyzer)
+    await prepare_material(env)
+
+    outcome = await env.service.analyze(
+        env.scene_id, agent_id=env.agent_ids[0], material_seqs=(2,)
+    )
+
+    assert outcome.status is AnalysisStatus.BLOCKED
+    assert outcome.provider_attempts == 0
+    assert env.runtime.budget_used(env.scene_id)["analysis_requests_used"] == 0
+    assert analyzer.requests == []
+    assert "不含该角色的公开发言" in (outcome.error or "")
+
+
+async def test_external_precheck_error_is_recorded_without_model_attempt(database: Database) -> None:
+    analyzer = FakeAnalyzer(response=good_response())
+    port = ExternalAnalysisPort(analyzer=analyzer)
+
+    def broken_precheck(_request):
+        raise RuntimeError("boundary failure")
+
+    port.precheck = broken_precheck
+    env = build_env(database, port=port)
+    await prepare_material(env)
+
+    outcome = await env.service.analyze(
+        env.scene_id, agent_id=env.agent_ids[0], material_seqs=(1, 2)
+    )
+
+    assert outcome.status is AnalysisStatus.FAILED
+    assert outcome.provider_attempts == 0
+    assert env.runtime.budget_used(env.scene_id)["analysis_requests_used"] == 0
+    assert analyzer.requests == []
 
 
 async def test_external_port_maps_a_normal_response_directly() -> None:

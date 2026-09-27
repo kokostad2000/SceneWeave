@@ -79,7 +79,9 @@ class AnalysisService:
             reason = getattr(port, "reason", None)
         return AnalysisCapability(
             enabled=bool(enabled),
-            external_package_installed=bool(enabled),
+            external_package_installed=(
+                capability.external_package_installed if capability is not None else bool(enabled)
+            ),
             reason=reason,
         )
 
@@ -142,6 +144,34 @@ class AnalysisService:
             persist_profile=False,
             provider_attempts=1,
         )
+
+        precheck = getattr(port, "precheck", None)
+        if precheck is not None:
+            try:
+                reason = precheck(request)
+            except Exception as exc:  # noqa: BLE001 - 边界检查异常不能影响聊天
+                report = AnalysisReport(
+                    status=AnalysisStatus.FAILED,
+                    scene_id=scene_id,
+                    agent_id=agent_id,
+                    provider_attempts=0,
+                    error=f"分析边界检查失败：{exc.__class__.__name__}",
+                    degradation_flags=["boundary_exception"],
+                )
+                return self._record(scene_id, agent_id, decision, report, material_seqs)
+            if reason is not None:
+                return self._record_blocked(
+                    scene_id, agent_id,
+                    BoundaryDecision(
+                        allowed=False, reason="external_boundary",
+                        detail=reason,
+                        behavior_description=decision.behavior_description,
+                        context=decision.context,
+                        materials=decision.materials,
+                        flags=("external_boundary",),
+                    ),
+                    material_seqs,
+                )
 
         # 一旦真正发送就占用一次分析预算，失败不退款。
         self._runtime.bump_budget(scene_id, analysis_requests=1)

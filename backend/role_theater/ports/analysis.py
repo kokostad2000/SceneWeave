@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+from importlib.metadata import PackageNotFoundError, version
 from typing import Protocol, runtime_checkable
 
 from ..contracts import (
@@ -23,6 +24,14 @@ DISCLAIMER = (
     "本结果仅用于解释虚构角色的文本行为，不构成对真实人物的心理测量或预测；"
     "不得当作经过校准的事实概率使用。"
 )
+
+
+def _external_package_installed() -> bool:
+    try:
+        version("behavior-psychology")
+    except PackageNotFoundError:
+        return False
+    return True
 
 
 @runtime_checkable
@@ -55,7 +64,11 @@ class DisabledAnalysisPort:
 
     @property
     def capability(self) -> AnalysisCapability:
-        return AnalysisCapability(enabled=False, external_package_installed=False, reason=self._reason)
+        return AnalysisCapability(
+            enabled=False,
+            external_package_installed=_external_package_installed(),
+            reason=self._reason,
+        )
 
     async def analyze(self, request: AnalysisRequest) -> AnalysisReport:
         return AnalysisReport(
@@ -147,7 +160,11 @@ class MockAnalysisPort:
         )
 
 
-def load_analysis_port(*, enabled: bool, reason: str | None = None) -> AnalysisPort:
+def load_analysis_port(
+    *, enabled: bool, reason: str | None = None, provider: str = "mock",
+    api_key: str | None = None, base_url: str | None = None,
+    model: str = "deepseek-flash",
+) -> AnalysisPort:
     """按配置返回分析端口（M06 起接入外部仓库）。
 
     - ``enabled=False``：返回 :class:`DisabledAnalysisPort`，**不导入**任何外部包
@@ -161,12 +178,20 @@ def load_analysis_port(*, enabled: bool, reason: str | None = None) -> AnalysisP
         return DisabledAnalysisPort(reason=reason or "分析能力未开启")
 
     try:
-        from ..analysis.external import ExternalAnalysisPort, load_external_analyzer
-        from ..analysis.controlled_client import ControlledAnalysisClient
+        from ..analysis.external import build_upstream_port
+        from .deepseek import DEFAULT_BASE_URL
+        from .local import DEFAULT_LOCAL_BASE_URL
 
-        client = ControlledAnalysisClient()
-        analyzer = load_external_analyzer(client=client)
-        return ExternalAnalysisPort(analyzer=analyzer, client=client)
+        if provider not in {"deepseek", "local"}:
+            return DisabledAnalysisPort(reason="分析需要配置真实模型提供方")
+        if provider == "deepseek" and not api_key:
+            return DisabledAnalysisPort(reason="分析需要已配置的模型凭证")
+        resolved_base = base_url or (
+            DEFAULT_BASE_URL if provider == "deepseek" else DEFAULT_LOCAL_BASE_URL
+        )
+        return build_upstream_port(
+            provider=provider, api_key=api_key, base_url=resolved_base, model=model
+        )
     except Exception as exc:  # noqa: BLE001 - 外部包缺失是预期情形
         return DisabledAnalysisPort(
             reason=reason

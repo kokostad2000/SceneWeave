@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import subprocess
 import sys
 
 import pytest
@@ -185,10 +186,17 @@ def test_analysis_port_factory_never_creates_a_fake_capability() -> None:
 
 def test_analysis_layer_does_not_import_external_src_package() -> None:
     """禁用分析时不得导入外部仓库的顶层 ``src`` 包（PRD 6.2）。"""
-
-    import role_theater.ports.analysis  # noqa: F401
-
-    assert "src" not in sys.modules
+    result = subprocess.run(
+        [
+            sys.executable, "-c",
+            "import sys; "
+            "from role_theater.ports.analysis import load_analysis_port; "
+            "assert not load_analysis_port(enabled=False).enabled; "
+            "assert 'src' not in sys.modules",
+        ],
+        check=False, capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
 
 
 @pytest.mark.parametrize("kind", list(ModelFailureKind))

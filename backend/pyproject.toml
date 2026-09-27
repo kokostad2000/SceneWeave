@@ -14,7 +14,9 @@ dependencies = [
 [project.optional-dependencies]
 # 行为分析外部依赖在 M06 通过 uv 的 --optional 方式锁定提交；
 # M00 不安装，也不得要求已安装（PRD 6.2）。
-analysis = []
+analysis = [
+    "behavior-psychology",
+]
 
 [dependency-groups]
 dev = [
@@ -37,3 +39,6 @@ addopts = "-q"
 
 [tool.uv]
 package = true
+
+[tool.uv.sources]
+behavior-psychology = { git = "https://github.com/kokostad2000/behavior-psychology-v2.0.git", rev = "bd1e8fa97b395223d629539022fbd92e1a5429d7" }
