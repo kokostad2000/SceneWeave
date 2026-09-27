@@ -143,6 +143,35 @@ async def test_tools_are_never_sent_even_when_params_change_other_fields() -> No
     assert "tools" not in payload
 
 
+async def test_single_call_token_limit_rejects_before_network() -> None:
+    transport = RecordingTransport()
+    response = await _client(transport).generate_action(
+        _request(params=ModelParams(max_output_tokens=10_000_000))
+    )
+
+    assert response.ok is False
+    assert response.failure is not None
+    assert response.failure.kind is ModelFailureKind.CONTEXT_LIMIT
+    assert response.sent is False
+    assert transport.requests == []
+
+
+async def test_provider_reported_token_limit_overrun_is_failure() -> None:
+    transport = RecordingTransport([
+        _completion(
+            "stop", '{"action":"PASS","text":"","reply_to_message_id":null,"requested_speaker_id":null}',
+            usage={"prompt_tokens": 9_999_999, "completion_tokens": 2},
+        )
+    ])
+    response = await _client(transport).generate_action(_request())
+
+    assert response.ok is False
+    assert response.failure is not None
+    assert response.failure.kind is ModelFailureKind.PROVIDER_ERROR
+    assert response.usage.input_tokens == 9_999_999
+    assert response.usage.output_tokens == 2
+
+
 async def test_thinking_enabled_switches_the_explicit_flag() -> None:
     transport = RecordingTransport()
     client = _client(transport)

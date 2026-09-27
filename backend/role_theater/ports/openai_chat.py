@@ -34,6 +34,11 @@ from ..contracts import (
     codepoint_length,
 )
 from .action_parser import parse_action_content
+from .token_limit import (
+    SingleCallTokenLimitExceeded,
+    actual_usage_exceeds_single_call_limit,
+    check_single_call_token_limit,
+)
 
 CHAT_COMPLETIONS_PATH = "/chat/completions"
 
@@ -168,6 +173,10 @@ class OpenAICompatibleChatClient:
             )
 
         payload = self.build_payload(request)
+        try:
+            check_single_call_token_limit(payload["messages"], request.params.max_output_tokens)
+        except SingleCallTokenLimitExceeded as exc:
+            return failure(ModelFailureKind.CONTEXT_LIMIT, str(exc), sent=False)
         started = self._monotonic()
 
         timeout = httpx.Timeout(request.params.request_timeout_seconds)
@@ -253,6 +262,16 @@ class OpenAICompatibleChatClient:
         returned_model = body.get("model")
         provider_request_id = body.get("id")
         usage = self._usage_from(body.get("usage"))
+        if actual_usage_exceeds_single_call_limit(usage.input_tokens, usage.output_tokens):
+            return failure(
+                ModelFailureKind.PROVIDER_ERROR,
+                "供应商报告的单次 token 用量超过 10,000,000",
+                sent=True,
+                returned_model=returned_model,
+                provider_request_id=provider_request_id,
+                usage=usage,
+                latency_ms=latency_ms,
+            )
 
         choices = body.get("choices")
         if not isinstance(choices, list) or not choices:

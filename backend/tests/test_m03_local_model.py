@@ -341,10 +341,11 @@ def test_strict_local_server_rejects_cloud_only_fields(tmp_path: Path) -> None:
         with TestClient(create_app(settings)) as client:
             detail = client.post("/api/scenes/preset", json={}).json()
             scene_id = detail["scene"]["scene_id"]
-            client.post(
+            ack = client.post(
                 f"/api/scenes/{scene_id}/commands",
                 json={"request_id": "strict-1", "command": "STEP"},
-            )
+            ).json()
+            assert ack["accepted"] is True, ack
             summary = client.get(f"/api/scenes/{scene_id}/summary").json()
 
         assert server.recorder.calls >= 1
@@ -370,10 +371,11 @@ def test_local_endpoint_failures_surface_as_failed_turns(
         with TestClient(create_app(settings)) as client:
             detail = client.post("/api/scenes/preset", json={}).json()
             scene_id = detail["scene"]["scene_id"]
-            client.post(
+            ack = client.post(
                 f"/api/scenes/{scene_id}/commands",
                 json={"request_id": "f1", "command": "STEP"},
-            )
+            ).json()
+            assert ack["accepted"] is True, ack
             summary = client.get(f"/api/scenes/{scene_id}/summary").json()
 
         assert summary["succeeded"] == 0
