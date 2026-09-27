@@ -1,0 +1,58 @@
+{
+  "started_at": "2026-09-27T11:13:25.603635+00:00",
+  "engine": "live-deepseek",
+  "purpose": "quality-observation-sample",
+  "preset_key": "roommates",
+  "turns_requested": 3,
+  "scene": {
+    "scene_id": "scn_f5490df76deb41d3a33de70b0924ba99",
+    "title": "三个室友的客厅"
+  },
+  "steps": [
+    {
+      "accepted": true,
+      "run_state": "PAUSED",
+      "pause_reason": "MANUAL"
+    },
+    {
+      "accepted": true,
+      "run_state": "PAUSED",
+      "pause_reason": "MANUAL"
+    },
+    {
+      "accepted": true,
+      "run_state": "PAUSED",
+      "pause_reason": "MANUAL"
+    }
+  ],
+  "timeline": [
+    {
+      "seq": 1,
+      "kind": "message",
+      "author": "安然",
+      "text": "哎正好，我朋友今晚临时把聚会取消了，我这会儿正好没事干，你们俩晚上有什么安排没？要不咱们仨一起找点事情做？"
+    },
+    {
+      "seq": 2,
+      "kind": "message",
+      "author": "许川",
+      "text": "我今天太累了，想歇着。你们玩，我旁边待着就行。"
+    },
+    {
+      "seq": 3,
+      "kind": "message",
+      "author": "陈禾",
+      "text": "我今晚也没什么事，都可以。不过看许川挺累的，要不找点安静的？"
+    }
+  ],
+  "summary": {
+    "scene_id": "scn_f5490df76deb41d3a33de70b0924ba99",
+    "role_requests_used": 3,
+    "max_role_requests": 200,
+    "succeeded": 3,
+    "failed": 0,
+    "unknown": 0,
+    "last_failure_kind": null
+  },
+  "finished_at": "2026-09-27T11:13:27.970010+00:00"
+}

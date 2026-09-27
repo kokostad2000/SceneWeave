@@ -1,0 +1,46 @@
+{
+  "started_at": "2026-09-27T11:13:45.939743+00:00",
+  "engine": "live-deepseek",
+  "purpose": "quality-observation-sample",
+  "preset_key": "convenience_store",
+  "turns_requested": 3,
+  "scene": {
+    "scene_id": "scn_b888a7638f214e8cac58565d4fcd9389",
+    "title": "深夜便利店的三个顾客"
+  },
+  "steps": [
+    {
+      "accepted": true,
+      "run_state": "PAUSED",
+      "pause_reason": "MANUAL"
+    },
+    {
+      "accepted": true,
+      "run_state": "PAUSED",
+      "pause_reason": "MANUAL"
+    },
+    {
+      "accepted": true,
+      "run_state": "PAUSED",
+      "pause_reason": "MANUAL"
+    }
+  ],
+  "timeline": [
+    {
+      "seq": 1,
+      "kind": "message",
+      "author": "郑好",
+      "text": "哎，你们也是被雨困在这儿的吧？我刚搬来附近，晚上老一个人，正好碰见你们。这雨听着还挺大的，你们住这片儿吗？"
+    }
+  ],
+  "summary": {
+    "scene_id": "scn_b888a7638f214e8cac58565d4fcd9389",
+    "role_requests_used": 3,
+    "max_role_requests": 200,
+    "succeeded": 3,
+    "failed": 0,
+    "unknown": 0,
+    "last_failure_kind": null
+  },
+  "finished_at": "2026-09-27T11:13:48.308307+00:00"
+}

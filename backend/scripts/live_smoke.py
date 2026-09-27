@@ -6,7 +6,7 @@
 用法::
 
     # 需要显式开关与密钥；会产生真实费用
-    SCENEWEAVE_MODEL_API_KEY=... uv run python scripts/live_smoke.py --live --confirm-spend
+    SCENEWEAVE_MODEL_API_KEY=... uv run python scripts/live_smoke.py --live
 
     # 不带开关（或没有密钥）时只会打印缺项并退出 2
     uv run python scripts/live_smoke.py
@@ -107,20 +107,12 @@ async def run_live_smoke(model_name: str | None) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description="SceneWeave 真实模型冒烟（需显式 live 开关）")
     parser.add_argument("--live", action="store_true", help="显式开启真实调用")
-    parser.add_argument(
-        "--confirm-spend",
-        action="store_true",
-        help="确认会产生真实调用费用（PRD 10：不在普通 CI 自动花费）",
-    )
     parser.add_argument("--model", default=None, help="覆盖模型名（默认取契约初值）")
     args = parser.parse_args()
 
     if not args.live:
         print("未提供 --live：真实模型验收不会执行。", file=sys.stderr)
         print("该项按 PRD 10 记为「未验证」。", file=sys.stderr)
-        return EXIT_MISSING_SWITCH
-    if not args.confirm_spend:
-        print("未提供 --confirm-spend：拒绝发起可能产生费用的真实调用。", file=sys.stderr)
         return EXIT_MISSING_SWITCH
     if not os.environ.get("SCENEWEAVE_MODEL_API_KEY", "").strip():
         print("缺项：环境变量 SCENEWEAVE_MODEL_API_KEY 为空。", file=sys.stderr)

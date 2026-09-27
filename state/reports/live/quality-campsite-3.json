@@ -1,0 +1,84 @@
+{
+  "started_at": "2026-09-27T11:17:08.412091+00:00",
+  "engine": "live-deepseek",
+  "purpose": "quality-observation-sample",
+  "preset_key": "campsite",
+  "turns_requested": 3,
+  "scene": {
+    "scene_id": "scn_5bfa2217baab4905a3d38736fb7233dd",
+    "title": "周末露营地的三个人"
+  },
+  "steps": [
+    {
+      "accepted": true,
+      "run_state": "PAUSED",
+      "pause_reason": "MANUAL"
+    },
+    {
+      "accepted": true,
+      "run_state": "PAUSED",
+      "pause_reason": "MANUAL"
+    },
+    {
+      "accepted": true,
+      "run_state": "PAUSED",
+      "pause_reason": "MANUAL"
+    }
+  ],
+  "timeline": [
+    {
+      "seq": 1,
+      "kind": "message",
+      "author": "何澜",
+      "text": "人到齐了，我们先分工。我负责搭主帐篷和检查地钉，苏木去清一下排水沟和拾柴，涂山先把炊事区分出来。争取天黑前全部收尾，有问题随时喊我。"
+    },
+    {
+      "seq": 2,
+      "kind": "message",
+      "author": "苏木",
+      "text": "哎？分工里没有帐篷吗！我其实超想学搭主帐篷的，能不能让我跟你一起？我……我之前看过不少教程来着！"
+    },
+    {
+      "seq": 3,
+      "kind": "message",
+      "author": "何澜",
+      "text": "排水沟和拾柴是基本功,先按分工来。搭帐篷这边我盯得住,你要是想学,收尾的时候我留两根地钉给你练手,行吗?"
+    }
+  ],
+  "actions": [
+    {
+      "step": 1,
+      "actor": "何澜",
+      "status": "SUCCEEDED",
+      "action": "SPEAK",
+      "input_tokens": 520,
+      "output_tokens": 79
+    },
+    {
+      "step": 2,
+      "actor": "苏木",
+      "status": "SUCCEEDED",
+      "action": "SPEAK",
+      "input_tokens": 580,
+      "output_tokens": 104
+    },
+    {
+      "step": 3,
+      "actor": "何澜",
+      "status": "SUCCEEDED",
+      "action": "SPEAK",
+      "input_tokens": 653,
+      "output_tokens": 86
+    }
+  ],
+  "summary": {
+    "scene_id": "scn_5bfa2217baab4905a3d38736fb7233dd",
+    "role_requests_used": 3,
+    "max_role_requests": 200,
+    "succeeded": 3,
+    "failed": 0,
+    "unknown": 0,
+    "last_failure_kind": null
+  },
+  "finished_at": "2026-09-27T11:17:11.315553+00:00"
+}

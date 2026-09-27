@@ -2,7 +2,11 @@
 
 需求来源：`PRD.md`（2026-09-26 核对版，22117 字节，211 行）
 开发规则：`AGENTS.md`（一次只开发一个模块；核验由开发代理执行，见第 5.1 节）
-最近更新：**M00–M07 全部已验收**；已增加本地模型提供方（`SCENEWEAVE_MODEL_PROVIDER=local`）；B6 按人工裁决补齐为三个预置场景；接入 DeepSeek 真实 API 的契约已按官方文档核对（U-M03-1 关闭）；**2026-09-26 人工发起的一场真实会话（`deepseek-flash`）8 次调用中 4 次 `SCHEMA_INVALID`（提示词不暴露消息 ID），已按人工授权修复**（见 `state/reports/FIX-reply-reference.md`），离线回归全绿，**重启后 2026-09-27 00:21 的真实运行 22 次调用全部成功、其中 21 条消息带 `reply_to_message_id`，修复已在真实模型上验证通过**；**角色请求上限默认值按人工裁决由 24 上调为 200**（见 `state/reports/CHANGE-role-request-limit.md`，PRD 原文未改），控制方式不变；**2026-09-27 00:25 已按人工要求重启后端，两项改动实际生效**（旧进程无 `--reload`，重启前线上仍返回 24／4 与 `role_action@m02`，重启后为 200／4 与 `role_action@m02.1`；见 `state/reports/FIX-reply-reference.md` §8，**该处与 §9 的时间标注不一致，已于同报告 §10 登记并给出可从证据复原的结论**）。交付结论：**未达到「可试用」**（新提示词的真实模型验收**已完成**；仍缺**定向事件的真实效果**、**真实行为分析**（外部仓库未安装）、**三个预置场景各三次的人工质量观察**与**部署**，见 `docs/RELEASE.md` §7）。证据见 `state/reports/M00.md`–`M07.md` 与 `state/reports/` 下的 FIX／CHANGE 报告。**2026-09-27 维护轮（P0）**：重启后端并复核线上契约、修正本文件失效事实、重跑离线回归与契约漂移，证据见 `state/reports/MAINT-2026-09-27.md`
+最近更新：**M00–M07 全部已验收；本机真实试用服务已可用**。按人工明确授权，真实角色与分析调用无需逐次批准，单次供应商请求上限为 10,000,000 tokens。2026-09-27 已完成真实三人聊天、定向事件的可见性与语义效果、真实行为分析、三个预置场景各三次真实样本；浏览器在本机 DeepSeek 服务上完成三次角色行动和两次分析。具体证据与退出码见 `state/reports/LIVE-TRIAL-2026-09-27.md`。**人工对话质量观察、浏览器 EventSource 自动重连、长时间运行与异机部署仍未验证**；本次目标为本机可试用，不能据此宣称正式发布验收全过。
+
+**当前服务**：后端 `127.0.0.1:8002`、前端 `127.0.0.1:5175`，均只监听本机；原有 8000／5173 服务未受本轮干扰。浏览器会话有三名角色的真实发言，重启后持久化恢复。真实分析第一次偏向非所选角色，修正分析对象提示后复测聚焦目标角色，但上游标签不完整，被准确标为 `DEGRADED`。
+
+**当前回归**：后端阻断外网完整回归 435 passed、可选上游包配假 SDK 7 passed、前端 49 passed，类型检查退出 0；1 条既有 Starlette 弃用警告。原有历史报告与 429／434 项的阶段性结果保留，当前口径以最新报告为准。
 
 ## 0. 当前基线事实
 
@@ -10,18 +14,18 @@
 |---|---|
 | 仓库根目录 | `/Users/zhanglike/Desktop/SceneWeave` |
 | 起始内容 | 仅有 `PRD.md`，无应用代码、无 `AGENTS.md`、无架构／任务／状态文件 |
-| Git | **当前是 Git 仓库且与远程同步**：远程 `origin` = `https://github.com/kokostad2000/SceneWeave.git`，`main` 跟踪 `origin/main`，`git rev-parse HEAD` 与 `origin/main` 均为 `21ff630`（2026-09-27 00:38「文档同步到当前真实状态」）；提交数 4，跟踪文件 162，`git status --short` 无输出（工作树干净）。**M00 开工时**确实不是仓库（`git status` 退出码 128），初始化与推送由人工在 M07 之后完成，不在代理权限内 |
+| Git | `main` 跟踪 `origin/main`，当前本地分支比远程跟踪分支领先 1 个既有提交；本轮改动尚未提交，工作树非干净。仓库远程为 `https://github.com/kokostad2000/SceneWeave.git`。**M00 开工时**确实不是仓库，初始化与推送由人工在 M07 之后完成，不在代理权限内 |
 | PRD 是否完整读取 | 是，211 行完整读取，原文件保留未改动 |
 | Python | 3.12.14（首版验证环境） |
 | Node.js / pnpm | v24.2.0 / 11.19.0 |
 | 已完成模块 | M00 工程与契约、M01 角色与场景、M02 可见性与调度、M03 模型适配、M04 运行与事件、M05 操作界面、M06 行为分析、M07 集成与交付 |
-| 测试结果 | 后端 `pytest` **423 passed**（退出码 0，2026-09-26 引用修复后；修复前 407）；前端 `vitest` **49 passed**（退出码 0，新增 1 项预算默认值用例）；`tsc --noEmit` 与 `vite build` 均退出码 0。**2026-09-27 维护轮在当前 HEAD 重跑**：后端 `pytest` **423 passed**（普通与阻断出站各一次，退出码均 0，9.85s／9.83s）、前端 **49 passed**、`tsc --noEmit`／`vite build` 退出码 0、契约产物重建后**无漂移**（见 `state/reports/MAINT-2026-09-27.md` §3） |
+| 测试结果 | 当前后端阻断外网 **435 passed**、可选上游包 **7 passed**、前端 **49 passed**、类型检查退出 0；本轮详情见 `state/reports/LIVE-TRIAL-2026-09-27.md` |
 | 无密钥验证 | 未设置任何密钥时 `GET /api/health` 返回 HTTP 200；M01 全部接口在无密钥下工作 |
-| 真实调用记录 | ① 2026-09-26 23:42–23:47（UTC+8）`deepseek-flash` 会话：8 次调用，4 次 `SCHEMA_INVALID`（提示词不暴露消息 ID）。② 2026-09-27 00:21–00:22 **重启后**同一模型 22 次调用 **全部成功**，22 条消息中 **21 条带 `reply_to_message_id`**、2 条带 `requested_speaker_id` → 引用修复在真实模型上验证通过。数据源 `backend/sceneweave.db` → `scene_turns`／`messages`，详见 `state/reports/FIX-reply-reference.md` §8–§9。**2026-09-27 只读复核 `scene_turns`（补齐口径）**：同场景 `scn_48c301dd89074c978aa3843f2b772043` 共 **25** 条 turn = **修复前 3 条**（`role_action@m02`：1 SUCCEEDED ＋ 2 `SCHEMA_INVALID`）＋ **修复后 22 条**（`role_action@m02.1`：全部 SUCCEEDED）；场景当前 `PAUSED`／`MANUAL`、`25/200`、`last_committed_seq=22`、`events=0`（**定向事件仍未验证**） |
+| 真实调用记录 | 历史引用修复会话见 `state/reports/FIX-reply-reference.md`；该旧场景无事件。**本轮新增**：两次真实专项、九份质量样本及浏览器本机会话，共 42 次成功角色请求与 3 次行为分析供应商请求，定向事件已有单例真实效果；见 `state/reports/LIVE-TRIAL-2026-09-27.md` |
 | 契约产物 | 连续两次导出 sha256 一致（可复现）；后端测试强制检测漂移 |
-| 出站网络 | 后端测试在阻断出站 DNS／连接后仍 **423 passed**（`PYTHONPATH=/private/tmp .venv/bin/python -m pytest -p no_net_plugin`，证明无真实外部调用）。**2026-09-27 维护轮复现成功**：退出码 0、9.83s |
+| 出站网络 | 当前后端完整回归在阻断外网、允许本机回环假服务下 **435 passed**；该测试命令未调用真实外部服务。真实专项与浏览器试用单列于最新报告 |
 | 预算默认值 | 角色请求上限默认 **200**（人工裁决 2026-09-26 由 24 上调），分析请求上限默认 4；可在 [1, 200] 内创建时下调，开始后锁定 |
-| 证据 | `state/reports/M00.md`–`M07.md`；引用缺陷修复 `state/reports/FIX-reply-reference.md`（含真实调用记录与反例检查）；预算默认值变更 `state/reports/CHANGE-role-request-limit.md`；**维护轮（P0）`state/reports/MAINT-2026-09-27.md`**；硬验收 `docs/ACCEPTANCE.md`；发布资料 `docs/RELEASE.md` |
+| 证据 | 最新试用报告 `state/reports/LIVE-TRIAL-2026-09-27.md`；模块报告 `state/reports/M00.md`–`M07.md`；历史修复与维护报告；硬验收 `docs/ACCEPTANCE.md`；发布资料 `docs/RELEASE.md` |
 
 PRD 引用、且**M00／M01 当时确实不存在**的文件（历史缺口，现已处置）：
 
@@ -72,11 +76,11 @@ PRD 引用、且**M00／M01 当时确实不存在**的文件（历史缺口，�
 |---|---|---|---|
 | B1 | `docs/SOURCES.md` 缺失（PRD 的 [S1]～[S9] 原始地址不在 PRD 内） | **已建立 `docs/SOURCES.md`**：记录本项目实际核对过的来源（DeepSeek Chat Completions 文档，用于关闭 U-M03-1）；`[S1]`～`[S9]` 仍不编造、保持未验证，需人工提供地址或授权检索 | **部分处置**（[S1]～[S9] 仍缺） |
 | B2 | `contract_version` 长期策略未定 | 采用规则：契约**破坏性变更**时递增为 `mXX.N`；OpenAPI 漂移由 `backend/tests/test_contract_export.py` 强制检测。M07 前如需改为语义化版本再评估 | 已处置（有理由） |
-| B3 | 外部分析仓库 `behavior-psychology-v2.0`（`bd1e8fa…`）不可访问、未安装 | 保持未安装、未导入；`AnalysisPort` 默认实现返回 `DISABLED`；接入与联调固定在 M06 | 未验证（按计划推迟到 M06） |
+| B3 | 外部分析仓库 `behavior-psychology-v2.0`（`bd1e8fa…`）此前不可访问 | 已按锁文件安装相同提交的可选依赖，离线和本机真实供应商调用均已执行；语义质量仍需人工复核 | 已关闭（质量待观察） |
 | B4 | `docs/ACCEPTANCE.md` 缺失 | **已由 M07 建立**（14 项硬验收逐条对照） | 已关闭 |
 | B6 | PRD 第 10 节要求「预置三个场景各运行三次」，第 3.1 节只定义了 1 个预置场景 | **人工裁决：补两个预置场景**（不改 PRD 原文）。已新增 `convenience_store`（深夜便利店的三个顾客）与 `campsite`（周末露营地的三个人），各 3 名角色，角色与情境为**项目自撰内容**，未声称出自 PRD；撰写遵守 PRD 3.1 的约束（不预设争吵／和解／最终决定） | **已处置（人工决议 2026-09-26）** |
 | B5 | 远端 CI 未接入 | M00 以本地脚本 + 契约漂移检测落地「CI 基线」；是否接入远端 CI 由 M07 决定 | 未验证（不阻塞） |
 | B7 | PRD 5.3 写的预算默认值是「角色请求 24／分析 4」，人工要求「给 200 轮对话的限额」 | **人工裁决：角色请求默认上限上调为 200**（分析仍 4，可配置范围 [1, 200] 与控制方式不变）。**不改 PRD 原文**；口径按「一次角色请求 = 一轮」落实，若「一轮」指所有角色各说一次需改为角色数 × 200，已登记待确认。记录见 `state/reports/CHANGE-role-request-limit.md` | **已处置（人工决议 2026-09-26；口径待确认）** |
-| M1 | `tests/test_m03_local_model.py` 出现过一次**不可复现**的失败（`summary.failed==0`） | **本轮未改测试**。已定位失败签名为「STEP 未执行 → 不记录 turn」（`runtime/runner.py:321-356`，被拒或选不出候选），并已**可控复现该签名**；随后 12 次运行（含后端在跑、阻断插件、4 进程并发、全量）全部通过。结构性成因：该用例只看 `summary` 计数，不校验命令 `accepted` 与 turn 是否存在。是否补断言待人工裁决 | 已登记（未修复，见 `state/reports/MAINT-2026-09-27.md` §5 F2） |
-| M2 | `scripts/export_contracts.sh` 在受限沙箱下需 `UV_CACHE_DIR` | 未设置时退出码 **2**（`~/.cache/uv` 被拒）；本轮以 `UV_CACHE_DIR=<repo>/.cache/uv` 绕过并成功重建（退出码 0、无漂移）。**建议**脚本内置兜底，未实施 | 已绕过（建议未实施） |
-| M3 | `.gitignore` 未覆盖 SQLite WAL 运行时文件 | 后端以 WAL 运行时出现未跟踪的 `backend/sceneweave.db-shm`／`-wal`，存在误提交风险；后端停止并检查点后自动消失。**建议**补 `*.db-shm`／`*.db-wal`，未实施 | 已登记（建议未实施） |
+| M1 | `tests/test_m03_local_model.py` 曾出现一次不可复现失败，测试只看 `summary` 计数 | 本轮已补命令 `accepted` 断言；完整回归 429 passed。原始调查见 `state/reports/MAINT-2026-09-27.md` §5 F2 | 已修复并回归 |
+| M2 | `scripts/export_contracts.sh` 在受限沙箱下需 `UV_CACHE_DIR` | 脚本已内置仓库内缓存兜底；本轮契约重建成功且无漂移 | 已修复 |
+| M3 | `.gitignore` 未覆盖 SQLite WAL 运行时文件 | 已补 `*.db-shm`／`*.db-wal`；`git check-ignore -v` 验证命中 | 已修复 |

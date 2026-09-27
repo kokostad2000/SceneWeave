@@ -1,0 +1,84 @@
+{
+  "started_at": "2026-09-27T11:16:50.102032+00:00",
+  "engine": "live-deepseek",
+  "purpose": "quality-observation-sample",
+  "preset_key": "campsite",
+  "turns_requested": 3,
+  "scene": {
+    "scene_id": "scn_8a3a2e2a24ad491b83cb2035dee185ec",
+    "title": "周末露营地的三个人"
+  },
+  "steps": [
+    {
+      "accepted": true,
+      "run_state": "PAUSED",
+      "pause_reason": "MANUAL"
+    },
+    {
+      "accepted": true,
+      "run_state": "PAUSED",
+      "pause_reason": "MANUAL"
+    },
+    {
+      "accepted": true,
+      "run_state": "PAUSED",
+      "pause_reason": "MANUAL"
+    }
+  ],
+  "timeline": [
+    {
+      "seq": 1,
+      "kind": "message",
+      "author": "何澜",
+      "text": "好，趁天还亮，我们先把营地安顿好。苏木你去清一下帐篷区的地面，涂山跟我搭主帐篷，先把账篷立起来再分东西。"
+    },
+    {
+      "seq": 2,
+      "kind": "message",
+      "author": "苏木",
+      "text": "好嘞！清地面是吧？我这就去！不过……搭主帐篷那边我能凑过去看一眼吗？我还挺想学怎么立帐篷的，之前都没怎么……咳，我是说再多练练！"
+    },
+    {
+      "seq": 3,
+      "kind": "message",
+      "author": "涂山",
+      "text": "行，我搭。"
+    }
+  ],
+  "actions": [
+    {
+      "step": 1,
+      "actor": "何澜",
+      "status": "SUCCEEDED",
+      "action": "SPEAK",
+      "input_tokens": 521,
+      "output_tokens": 71
+    },
+    {
+      "step": 2,
+      "actor": "苏木",
+      "status": "SUCCEEDED",
+      "action": "SPEAK",
+      "input_tokens": 573,
+      "output_tokens": 96
+    },
+    {
+      "step": 3,
+      "actor": "涂山",
+      "status": "SUCCEEDED",
+      "action": "SPEAK",
+      "input_tokens": 655,
+      "output_tokens": 56
+    }
+  ],
+  "summary": {
+    "scene_id": "scn_8a3a2e2a24ad491b83cb2035dee185ec",
+    "role_requests_used": 3,
+    "max_role_requests": 200,
+    "succeeded": 3,
+    "failed": 0,
+    "unknown": 0,
+    "last_failure_kind": null
+  },
+  "finished_at": "2026-09-27T11:16:52.861074+00:00"
+}

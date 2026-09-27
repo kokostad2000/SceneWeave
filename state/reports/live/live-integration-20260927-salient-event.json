@@ -1,0 +1,161 @@
+{
+  "started_at": "2026-09-27T11:24:11.316856+00:00",
+  "engine": "live-deepseek",
+  "turns_requested": 3,
+  "preset_key": "roommates",
+  "health": {
+    "status": "ok",
+    "app_name": "SceneWeave",
+    "app_version": "0.1.0",
+    "contract_version": "m00.1",
+    "run_state": "READY",
+    "analysis_enabled": false,
+    "model_configured": true,
+    "model_credential_source": "dotenv",
+    "model_provider": "deepseek"
+  },
+  "scene": {
+    "scene_id": "scn_2e1e4765c7d041e78498df1b1ddd9c5a",
+    "title": "三个室友的客厅",
+    "agents": [
+      "安然",
+      "许川",
+      "陈禾"
+    ],
+    "max_role_requests": 200
+  },
+  "steps": [
+    {
+      "step": 1,
+      "accepted": true,
+      "run_state": "PAUSED",
+      "pause_reason": "MANUAL",
+      "detail": null,
+      "role_requests_used": 1
+    },
+    {
+      "step": 2,
+      "accepted": true,
+      "run_state": "PAUSED",
+      "pause_reason": "MANUAL",
+      "detail": null,
+      "role_requests_used": 2
+    },
+    {
+      "step": 3,
+      "accepted": true,
+      "run_state": "PAUSED",
+      "pause_reason": "MANUAL",
+      "detail": null,
+      "role_requests_used": 3
+    }
+  ],
+  "timeline": [
+    {
+      "kind": "message",
+      "seq": 1,
+      "author": "安然",
+      "text": "哎呀正好，我今晚本来约的朋友临时放我鸽子了，正愁一个人在家闲得慌呢！难得咱们三个都凑在客厅，要不一起找点乐子？打牌、看片子、还是点外卖边吃边聊，你们说，我张罗！",
+      "event": null
+    },
+    {
+      "kind": "message",
+      "seq": 2,
+      "author": "许川",
+      "text": "我今晚就想歇着。你们定，我跟着。",
+      "event": null
+    },
+    {
+      "kind": "message",
+      "seq": 3,
+      "author": "陈禾",
+      "text": "我都行，听你们的。人多吃外卖也热闹，我不挑。",
+      "event": null
+    },
+    {
+      "kind": "event",
+      "seq": 4,
+      "author": null,
+      "text": null,
+      "event": "你的手机收到物业紧急通知：客厅窗边的水管漏水，今晚需要有人处理；其他室友还不知道这条通知。"
+    },
+    {
+      "kind": "message",
+      "seq": 5,
+      "author": "安然",
+      "text": "哈哈许川你就负责歇着，陈禾你负责不挑，那剩下的都交给我来张罗！既然人多吃外卖热闹，那咱们就先点起来，边吃边商量看片子还是打牌，怎么样？",
+      "event": null
+    },
+    {
+      "kind": "message",
+      "seq": 6,
+      "author": "陈禾",
+      "text": "那我来帮你打下手吧，点外卖这块我还能出点主意。看你张罗得这么起劲，怪不好意思光等着。",
+      "event": null
+    },
+    {
+      "kind": "message",
+      "seq": 7,
+      "author": "许川",
+      "text": "先等下。物业刚通知，客厅窗边水管漏水，今晚得处理。外卖你们点，漏水我来弄。",
+      "event": null
+    }
+  ],
+  "initial_authors": [
+    "安然",
+    "许川",
+    "陈禾"
+  ],
+  "role_requests_used": 3,
+  "event": {
+    "accepted": true,
+    "status": "EFFECTIVE",
+    "target": "许川",
+    "event_id": "evt_aaf386a3d4b040bbb435c870284b4e48",
+    "body": "你的手机收到物业紧急通知：客厅窗边的水管漏水，今晚需要有人处理；其他室友还不知道这条通知。",
+    "seq": 4
+  },
+  "targeted_event_visibility": {
+    "安然": false,
+    "许川": true,
+    "陈禾": false
+  },
+  "after_event_steps": [
+    {
+      "accepted": true,
+      "run_state": "PAUSED",
+      "target_processed_seq": 1,
+      "target_processed_event": false
+    },
+    {
+      "accepted": true,
+      "run_state": "PAUSED",
+      "target_processed_seq": 1,
+      "target_processed_event": false
+    },
+    {
+      "accepted": true,
+      "run_state": "PAUSED",
+      "target_processed_seq": 6,
+      "target_processed_event": true
+    }
+  ],
+  "summary": {
+    "scene_id": "scn_2e1e4765c7d041e78498df1b1ddd9c5a",
+    "role_requests_used": 6,
+    "max_role_requests": 200,
+    "succeeded": 6,
+    "failed": 0,
+    "unknown": 0,
+    "last_failure_kind": null
+  },
+  "target_post_event_messages": [
+    {
+      "seq": 7,
+      "text": "先等下。物业刚通知，客厅窗边水管漏水，今晚得处理。外卖你们点，漏水我来弄。"
+    }
+  ],
+  "target_mentions_event_marker": true,
+  "run_state_final": "PAUSED",
+  "finished_at": "2026-09-27T11:24:17.983217+00:00"
+}

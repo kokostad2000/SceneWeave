@@ -1,0 +1,159 @@
+{
+  "started_at": "2026-09-27T11:10:56.262045+00:00",
+  "engine": "live-deepseek",
+  "turns_requested": 3,
+  "preset_key": "roommates",
+  "health": {
+    "status": "ok",
+    "app_name": "SceneWeave",
+    "app_version": "0.1.0",
+    "contract_version": "m00.1",
+    "run_state": "READY",
+    "analysis_enabled": true,
+    "model_configured": true,
+    "model_credential_source": "dotenv",
+    "model_provider": "deepseek"
+  },
+  "scene": {
+    "scene_id": "scn_4430e2d923644176997de401583c1af5",
+    "title": "三个室友的客厅",
+    "agents": [
+      "安然",
+      "许川",
+      "陈禾"
+    ],
+    "max_role_requests": 200
+  },
+  "steps": [
+    {
+      "step": 1,
+      "accepted": true,
+      "run_state": "PAUSED",
+      "pause_reason": "MANUAL",
+      "detail": null,
+      "role_requests_used": 1
+    },
+    {
+      "step": 2,
+      "accepted": true,
+      "run_state": "PAUSED",
+      "pause_reason": "MANUAL",
+      "detail": null,
+      "role_requests_used": 2
+    },
+    {
+      "step": 3,
+      "accepted": true,
+      "run_state": "PAUSED",
+      "pause_reason": "MANUAL",
+      "detail": null,
+      "role_requests_used": 3
+    }
+  ],
+  "timeline": [
+    {
+      "kind": "message",
+      "seq": 1,
+      "author": "安然",
+      "text": "哎正好，我今晚本来约了个朋友的聚会，结果她临时有事取消了，我一个人在家待着怪没劲的。要不咱们仨今晚一起找点乐子？你们俩有什么想做的没，打牌、看电影、还是出去溜达溜达都行啊！",
+      "event": null
+    },
+    {
+      "kind": "message",
+      "seq": 2,
+      "author": "许川",
+      "text": "今天太累了，我就想歇着。你们玩，我旁观。",
+      "event": null
+    },
+    {
+      "kind": "message",
+      "seq": 3,
+      "author": "陈禾",
+      "text": "我都可以，看你们。许川要是想歇着，那咱们动静小一点也行。",
+      "event": null
+    },
+    {
+      "kind": "event",
+      "seq": 4,
+      "author": null,
+      "text": null,
+      "event": "你的手机收到一条消息：明天的安排有变动，稍后再确认。"
+    },
+    {
+      "kind": "message",
+      "seq": 5,
+      "author": "安然",
+      "text": "那这样，咱们今晚就在客厅搞个安静点的局，许川你躺沙发上歇着就行，不用出力，就当我们陪你。陈禾你觉得看电影怎么样？我翻翻有没有轻松点的喜剧，咱们边吃零食边看，不出门也不吵。",
+      "event": null
+    },
+    {
+      "kind": "message",
+      "seq": 6,
+      "author": "陈禾",
+      "text": "看电影挺好的，喜剧轻松。我去拿点零食过来吧，你们先挑片子。",
+      "event": null
+    },
+    {
+      "kind": "message",
+      "seq": 7,
+      "author": "许川",
+      "text": "行，那我躺着。片子别太吵的，我可能看一半就睡着了。",
+      "event": null
+    }
+  ],
+  "initial_authors": [
+    "安然",
+    "许川",
+    "陈禾"
+  ],
+  "role_requests_used": 3,
+  "event": {
+    "accepted": true,
+    "status": "EFFECTIVE",
+    "target": "许川",
+    "event_id": "evt_3cc5e63f493844dcb1cb7b55639c3626",
+    "seq": 4
+  },
+  "targeted_event_visibility": {
+    "安然": false,
+    "许川": true,
+    "陈禾": false
+  },
+  "after_event_steps": [
+    {
+      "accepted": true,
+      "run_state": "PAUSED",
+      "target_processed_seq": 1,
+      "target_processed_event": false
+    },
+    {
+      "accepted": true,
+      "run_state": "PAUSED",
+      "target_processed_seq": 1,
+      "target_processed_event": false
+    },
+    {
+      "accepted": true,
+      "run_state": "PAUSED",
+      "target_processed_seq": 6,
+      "target_processed_event": true
+    }
+  ],
+  "summary": {
+    "scene_id": "scn_4430e2d923644176997de401583c1af5",
+    "role_requests_used": 6,
+    "max_role_requests": 200,
+    "succeeded": 6,
+    "failed": 0,
+    "unknown": 0,
+    "last_failure_kind": null
+  },
+  "analysis": {
+    "status": "NORMAL",
+    "provider_attempts": 1,
+    "error": null,
+    "degradation_flags": []
+  },
+  "run_state_final": "PAUSED",
+  "finished_at": "2026-09-27T11:11:06.770721+00:00"
+}

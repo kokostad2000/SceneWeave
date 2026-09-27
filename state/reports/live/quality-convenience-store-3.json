@@ -1,0 +1,78 @@
+{
+  "started_at": "2026-09-27T11:16:26.826679+00:00",
+  "engine": "live-deepseek",
+  "purpose": "quality-observation-sample",
+  "preset_key": "convenience_store",
+  "turns_requested": 3,
+  "scene": {
+    "scene_id": "scn_75360d97744c44ed8780be497185dd7e",
+    "title": "深夜便利店的三个顾客"
+  },
+  "steps": [
+    {
+      "accepted": true,
+      "run_state": "PAUSED",
+      "pause_reason": "MANUAL"
+    },
+    {
+      "accepted": true,
+      "run_state": "PAUSED",
+      "pause_reason": "MANUAL"
+    },
+    {
+      "accepted": true,
+      "run_state": "PAUSED",
+      "pause_reason": "MANUAL"
+    }
+  ],
+  "timeline": [
+    {
+      "seq": 1,
+      "kind": "message",
+      "author": "周远",
+      "text": "一瓶矿泉水，谢谢。"
+    },
+    {
+      "seq": 2,
+      "kind": "message",
+      "author": "郑好",
+      "text": "哎，外面这雨说下就下啊。你也是住这附近的吗？我最近刚搬过来，晚上总来这家店逛逛。"
+    }
+  ],
+  "actions": [
+    {
+      "step": 1,
+      "actor": "林小满",
+      "status": "SUCCEEDED",
+      "action": "PASS",
+      "input_tokens": 535,
+      "output_tokens": 29
+    },
+    {
+      "step": 2,
+      "actor": "周远",
+      "status": "SUCCEEDED",
+      "action": "SPEAK",
+      "input_tokens": 530,
+      "output_tokens": 36
+    },
+    {
+      "step": 3,
+      "actor": "郑好",
+      "status": "SUCCEEDED",
+      "action": "SPEAK",
+      "input_tokens": 563,
+      "output_tokens": 62
+    }
+  ],
+  "summary": {
+    "scene_id": "scn_75360d97744c44ed8780be497185dd7e",
+    "role_requests_used": 3,
+    "max_role_requests": 200,
+    "succeeded": 3,
+    "failed": 0,
+    "unknown": 0,
+    "last_failure_kind": null
+  },
+  "finished_at": "2026-09-27T11:16:29.680729+00:00"
+}
