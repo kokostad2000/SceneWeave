@@ -98,6 +98,7 @@ describe('应用外壳', () => {
     render(<App />)
 
     expect(await screen.findByText(/契约版本 m00.1/)).toBeInTheDocument()
+    expect(screen.getByText(/行为分析只读取选中的公开材料/)).toBeInTheDocument()
     expect(screen.getByText(/界面中不存在冒充真实模型输出的模拟结果/)).toBeInTheDocument()
   })
 })
