@@ -1,0 +1,273 @@
+{
+  "engine": "live-deepseek",
+  "preset_key": "roommates",
+  "repeat": 1,
+  "started_at": "2026-09-28T02:15:04.842237+00:00",
+  "steps": [
+    {
+      "phase": "natural",
+      "index": 1,
+      "api_elapsed_ms": 55,
+      "accepted": true,
+      "run_state": "PAUSED",
+      "pause_reason": "PROVIDER_ERROR",
+      "detail": null
+    },
+    {
+      "phase": "public_event",
+      "index": 1,
+      "api_elapsed_ms": 21,
+      "accepted": true,
+      "run_state": "PAUSED",
+      "pause_reason": "PROVIDER_ERROR",
+      "detail": null
+    },
+    {
+      "phase": "targeted_event",
+      "index": 1,
+      "api_elapsed_ms": 22,
+      "accepted": true,
+      "run_state": "PAUSED",
+      "pause_reason": "PROVIDER_ERROR",
+      "detail": null
+    }
+  ],
+  "events": [
+    {
+      "visibility": "ALL",
+      "body": "客厅灯突然熄灭，物业群通知十分钟后恢复供电。大家可以自行决定等候或离开。",
+      "ack": {
+        "request_id": "observe-scn_ec050fecd186455a98e15e263374c6a5-public_event",
+        "command": null,
+        "accepted": true,
+        "deduplicated": false,
+        "run_state": "PAUSED",
+        "pause_reason": "PROVIDER_ERROR",
+        "event_id": "evt_31150d38b6194af39afaf7a17f5a0c70",
+        "event_status": "EFFECTIVE",
+        "detail": "事件已生效"
+      }
+    },
+    {
+      "visibility": "TARGETED",
+      "body": "只有你收到物业短信：今晚厨房水管需要关阀检查，其他室友暂时不知道。",
+      "ack": {
+        "request_id": "observe-scn_ec050fecd186455a98e15e263374c6a5-targeted_event",
+        "command": null,
+        "accepted": true,
+        "deduplicated": false,
+        "run_state": "PAUSED",
+        "pause_reason": "PROVIDER_ERROR",
+        "event_id": "evt_30f357f33f9042acb9637a8c3895f003",
+        "event_status": "EFFECTIVE",
+        "detail": "事件已生效"
+      }
+    }
+  ],
+  "analysis": null,
+  "scene_id": "scn_ec050fecd186455a98e15e263374c6a5",
+  "title": "三个室友的客厅",
+  "agents": [
+    {
+      "agent_id": "agt_5d0c3e5c5036453b93db2b16c323edaf",
+      "scene_id": "scn_ec050fecd186455a98e15e263374c6a5",
+      "name": "安然",
+      "order_index": 0,
+      "snapshot": {
+        "name": "安然",
+        "persona": "主动热情，愿意张罗，喜欢把人凑到一起。",
+        "speech_style": "热情、主动提问，句子偏长。",
+        "initial_goal": "想找人一起度过晚上。",
+        "private_background": "朋友临时取消了聚会。",
+        "source_template_id": "tpl_345d6eedd69b4aea8d6a70e5754c0ae6",
+        "captured_at": "2026-09-28T02:15:04.869063Z"
+      },
+      "created_at": "2026-09-28T02:15:04.869063Z"
+    },
+    {
+      "agent_id": "agt_cdf6bf84c2594871a09a6cbcd1f47043",
+      "scene_id": "scn_ec050fecd186455a98e15e263374c6a5",
+      "name": "许川",
+      "order_index": 1,
+      "snapshot": {
+        "name": "许川",
+        "persona": "表达直接，不太绕弯子。",
+        "speech_style": "短句、直接，少铺垫。",
+        "initial_goal": "想休息。",
+        "private_background": "今天工作很累。",
+        "source_template_id": "tpl_c530558dfa6b4f3785995b22902994cb",
+        "captured_at": "2026-09-28T02:15:04.869063Z"
+      },
+      "created_at": "2026-09-28T02:15:04.869063Z"
+    },
+    {
+      "agent_id": "agt_1ce9ddf91a2449caab225240b6e78713",
+      "scene_id": "scn_ec050fecd186455a98e15e263374c6a5",
+      "name": "陈禾",
+      "order_index": 2,
+      "snapshot": {
+        "name": "陈禾",
+        "persona": "刚搬来，还是新面孔。",
+        "speech_style": "客气、简短，先观察再开口。",
+        "initial_goal": "想融入，但不想打扰别人。",
+        "private_background": "",
+        "source_template_id": "tpl_c2fe8ea3e29d455f89632938d7fba368",
+        "captured_at": "2026-09-28T02:15:04.869063Z"
+      },
+      "created_at": "2026-09-28T02:15:04.869063Z"
+    }
+  ],
+  "targeted_visibility_before_response": {
+    "安然": false,
+    "许川": true,
+    "陈禾": false
+  },
+  "timeline": [
+    {
+      "kind": "event",
+      "seq": 1,
+      "message": null,
+      "event": {
+        "body": "客厅灯突然熄灭，物业群通知十分钟后恢复供电。大家可以自行决定等候或离开。",
+        "visibility": "ALL",
+        "target_agent_id": null,
+        "event_id": "evt_31150d38b6194af39afaf7a17f5a0c70",
+        "scene_id": "scn_ec050fecd186455a98e15e263374c6a5",
+        "seq": 1,
+        "status": "EFFECTIVE",
+        "schema_version": 1,
+        "accepted_at": "2026-09-28T02:15:04.939719Z",
+        "effective_at": "2026-09-28T02:15:04.939719Z"
+      },
+      "author_name": null
+    },
+    {
+      "kind": "event",
+      "seq": 2,
+      "message": null,
+      "event": {
+        "body": "只有你收到物业短信：今晚厨房水管需要关阀检查，其他室友暂时不知道。",
+        "visibility": "TARGETED",
+        "target_agent_id": "agt_cdf6bf84c2594871a09a6cbcd1f47043",
+        "event_id": "evt_30f357f33f9042acb9637a8c3895f003",
+        "scene_id": "scn_ec050fecd186455a98e15e263374c6a5",
+        "seq": 2,
+        "status": "EFFECTIVE",
+        "schema_version": 1,
+        "accepted_at": "2026-09-28T02:15:04.976561Z",
+        "effective_at": "2026-09-28T02:15:04.976561Z"
+      },
+      "author_name": null
+    }
+  ],
+  "analysis_not_run_reason": "无公开发言材料，未发起分析请求",
+  "actions": [
+    {
+      "actor": "安然",
+      "action_id": "act_1abf2678533f4c8d8c04a3238f757b06",
+      "actor_id": "agt_5d0c3e5c5036453b93db2b16c323edaf",
+      "status": "UNKNOWN",
+      "action": null,
+      "text": null,
+      "reply_to_message_id": null,
+      "requested_speaker_id": null,
+      "input_cursor_seq": 0,
+      "prompt_template_id": "role_action@m02.1",
+      "requested_model": "deepseek-flash",
+      "returned_model": null,
+      "provider_request_id": null,
+      "input_tokens": null,
+      "output_tokens": null,
+      "cached_tokens": null,
+      "usage_unknown": 1,
+      "failure_kind": "UNKNOWN_REQUEST",
+      "sent": 0,
+      "budget_consumed": 1,
+      "latency_ms": 38,
+      "created_at": "2026-09-28T02:15:04.888466+00:00",
+      "finished_at": "2026-09-28T02:15:04.929384+00:00"
+    },
+    {
+      "actor": "安然",
+      "action_id": "act_01e77239f3b3475e92dea47ea822c2b9",
+      "actor_id": "agt_5d0c3e5c5036453b93db2b16c323edaf",
+      "status": "UNKNOWN",
+      "action": null,
+      "text": null,
+      "reply_to_message_id": null,
+      "requested_speaker_id": null,
+      "input_cursor_seq": 1,
+      "prompt_template_id": "role_action@m02.1",
+      "requested_model": "deepseek-flash",
+      "returned_model": null,
+      "provider_request_id": null,
+      "input_tokens": null,
+      "output_tokens": null,
+      "cached_tokens": null,
+      "usage_unknown": 1,
+      "failure_kind": "UNKNOWN_REQUEST",
+      "sent": 0,
+      "budget_consumed": 1,
+      "latency_ms": 5,
+      "created_at": "2026-09-28T02:15:04.955254+00:00",
+      "finished_at": "2026-09-28T02:15:04.962665+00:00"
+    },
+    {
+      "actor": "安然",
+      "action_id": "act_846bc0712e194206b6c979413f073da3",
+      "actor_id": "agt_5d0c3e5c5036453b93db2b16c323edaf",
+      "status": "UNKNOWN",
+      "action": null,
+      "text": null,
+      "reply_to_message_id": null,
+      "requested_speaker_id": null,
+      "input_cursor_seq": 1,
+      "prompt_template_id": "role_action@m02.1",
+      "requested_model": "deepseek-flash",
+      "returned_model": null,
+      "provider_request_id": null,
+      "input_tokens": null,
+      "output_tokens": null,
+      "cached_tokens": null,
+      "usage_unknown": 1,
+      "failure_kind": "UNKNOWN_REQUEST",
+      "sent": 0,
+      "budget_consumed": 1,
+      "latency_ms": 5,
+      "created_at": "2026-09-28T02:15:05.009855+00:00",
+      "finished_at": "2026-09-28T02:15:05.017467+00:00"
+    }
+  ],
+  "summary": {
+    "scene_id": "scn_ec050fecd186455a98e15e263374c6a5",
+    "role_requests_used": 3,
+    "max_role_requests": 200,
+    "succeeded": 0,
+    "failed": 0,
+    "unknown": 3,
+    "last_failure_kind": "UNKNOWN_REQUEST"
+  },
+  "state_before_stop": {
+    "scene_id": "scn_ec050fecd186455a98e15e263374c6a5",
+    "status": "PAUSED",
+    "pause_reason": "PROVIDER_ERROR",
+    "role_requests_used": 3,
+    "max_role_requests": 200,
+    "analysis_requests_used": 0,
+    "max_analysis_requests": 4,
+    "in_flight": false,
+    "last_committed_seq": 2
+  },
+  "stop": {
+    "request_id": "observe-scn_ec050fecd186455a98e15e263374c6a5-stop",
+    "command": "STOP",
+    "accepted": true,
+    "deduplicated": false,
+    "run_state": "ENDED",
+    "pause_reason": null,
+    "event_id": null,
+    "event_status": null,
+    "detail": null
+  },
+  "finished_at": "2026-09-28T02:15:05.042871+00:00"
+}

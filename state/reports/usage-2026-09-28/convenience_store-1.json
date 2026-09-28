@@ -1,0 +1,273 @@
+{
+  "engine": "live-deepseek",
+  "preset_key": "convenience_store",
+  "repeat": 1,
+  "started_at": "2026-09-28T02:15:05.043892+00:00",
+  "steps": [
+    {
+      "phase": "natural",
+      "index": 1,
+      "api_elapsed_ms": 22,
+      "accepted": true,
+      "run_state": "PAUSED",
+      "pause_reason": "PROVIDER_ERROR",
+      "detail": null
+    },
+    {
+      "phase": "public_event",
+      "index": 1,
+      "api_elapsed_ms": 20,
+      "accepted": true,
+      "run_state": "PAUSED",
+      "pause_reason": "PROVIDER_ERROR",
+      "detail": null
+    },
+    {
+      "phase": "targeted_event",
+      "index": 1,
+      "api_elapsed_ms": 22,
+      "accepted": true,
+      "run_state": "PAUSED",
+      "pause_reason": "PROVIDER_ERROR",
+      "detail": null
+    }
+  ],
+  "events": [
+    {
+      "visibility": "ALL",
+      "body": "店外雨势变大，广播说附近末班公交还有五分钟到站。大家可以自行决定接下来做什么。",
+      "ack": {
+        "request_id": "observe-scn_684f9573537e4697a9f6f98447c0b61b-public_event",
+        "command": null,
+        "accepted": true,
+        "deduplicated": false,
+        "run_state": "PAUSED",
+        "pause_reason": "PROVIDER_ERROR",
+        "event_id": "evt_9b38b65f5a4a469fb7d9a1670dd54f04",
+        "event_status": "EFFECTIVE",
+        "detail": "事件已生效"
+      }
+    },
+    {
+      "visibility": "TARGETED",
+      "body": "只有你收到公交提醒：末班车临时提前两分钟，其他人暂时不知道。",
+      "ack": {
+        "request_id": "observe-scn_684f9573537e4697a9f6f98447c0b61b-targeted_event",
+        "command": null,
+        "accepted": true,
+        "deduplicated": false,
+        "run_state": "PAUSED",
+        "pause_reason": "PROVIDER_ERROR",
+        "event_id": "evt_9040e9607d534fac99edb15b28346941",
+        "event_status": "EFFECTIVE",
+        "detail": "事件已生效"
+      }
+    }
+  ],
+  "analysis": null,
+  "scene_id": "scn_684f9573537e4697a9f6f98447c0b61b",
+  "title": "深夜便利店的三个顾客",
+  "agents": [
+    {
+      "agent_id": "agt_0bdaabfcff3e4ba0b73052109a83d75c",
+      "scene_id": "scn_684f9573537e4697a9f6f98447c0b61b",
+      "name": "林小满",
+      "order_index": 0,
+      "snapshot": {
+        "name": "林小满",
+        "persona": "便利店夜班店员，做事麻利，习惯把话说短。",
+        "speech_style": "短句、先报事实，偶尔叹气。",
+        "initial_goal": "想按点交接下班。",
+        "private_background": "这个月房租还差一截，正在算能不能撑到发薪日。",
+        "source_template_id": "tpl_d2d93af5926c47e6a4b15b9c41547ce5",
+        "captured_at": "2026-09-28T02:15:05.057993Z"
+      },
+      "created_at": "2026-09-28T02:15:05.057993Z"
+    },
+    {
+      "agent_id": "agt_7a97a4d13fcc41f1af970c13d7dd6269",
+      "scene_id": "scn_684f9573537e4697a9f6f98447c0b61b",
+      "name": "周远",
+      "order_index": 1,
+      "snapshot": {
+        "name": "周远",
+        "persona": "刚面试完的应聘者，礼貌但没什么兴致聊天。",
+        "speech_style": "客气、回应简短，容易走神。",
+        "initial_goal": "买瓶水就赶末班车。",
+        "private_background": "今天的面试没通过，他没打算跟人提这件事。",
+        "source_template_id": "tpl_8ae3fd992880477d8e110ba122b02648",
+        "captured_at": "2026-09-28T02:15:05.057993Z"
+      },
+      "created_at": "2026-09-28T02:15:05.057993Z"
+    },
+    {
+      "agent_id": "agt_86c3410c92fa4af2b9e74e58bbfbe395",
+      "scene_id": "scn_684f9573537e4697a9f6f98447c0b61b",
+      "name": "郑好",
+      "order_index": 2,
+      "snapshot": {
+        "name": "郑好",
+        "persona": "便利店的常客，喜欢跟人搭话，不太会看气氛。",
+        "speech_style": "话多、爱追问细节，语气轻快。",
+        "initial_goal": "想找个人说说话。",
+        "private_background": "刚搬到附近，认识的人很少，晚上常一个人待着。",
+        "source_template_id": "tpl_2f4b0b04ea5342f6ba7d94cb7bde40ff",
+        "captured_at": "2026-09-28T02:15:05.057993Z"
+      },
+      "created_at": "2026-09-28T02:15:05.057993Z"
+    }
+  ],
+  "targeted_visibility_before_response": {
+    "林小满": false,
+    "周远": true,
+    "郑好": false
+  },
+  "timeline": [
+    {
+      "kind": "event",
+      "seq": 1,
+      "message": null,
+      "event": {
+        "body": "店外雨势变大，广播说附近末班公交还有五分钟到站。大家可以自行决定接下来做什么。",
+        "visibility": "ALL",
+        "target_agent_id": null,
+        "event_id": "evt_9b38b65f5a4a469fb7d9a1670dd54f04",
+        "scene_id": "scn_684f9573537e4697a9f6f98447c0b61b",
+        "seq": 1,
+        "status": "EFFECTIVE",
+        "schema_version": 1,
+        "accepted_at": "2026-09-28T02:15:05.094064Z",
+        "effective_at": "2026-09-28T02:15:05.094064Z"
+      },
+      "author_name": null
+    },
+    {
+      "kind": "event",
+      "seq": 2,
+      "message": null,
+      "event": {
+        "body": "只有你收到公交提醒：末班车临时提前两分钟，其他人暂时不知道。",
+        "visibility": "TARGETED",
+        "target_agent_id": "agt_7a97a4d13fcc41f1af970c13d7dd6269",
+        "event_id": "evt_9040e9607d534fac99edb15b28346941",
+        "scene_id": "scn_684f9573537e4697a9f6f98447c0b61b",
+        "seq": 2,
+        "status": "EFFECTIVE",
+        "schema_version": 1,
+        "accepted_at": "2026-09-28T02:15:05.125371Z",
+        "effective_at": "2026-09-28T02:15:05.125371Z"
+      },
+      "author_name": null
+    }
+  ],
+  "analysis_not_run_reason": "无公开发言材料，未发起分析请求",
+  "actions": [
+    {
+      "actor": "林小满",
+      "action_id": "act_f93b42af914641a3946e6fc04c522e31",
+      "actor_id": "agt_0bdaabfcff3e4ba0b73052109a83d75c",
+      "status": "UNKNOWN",
+      "action": null,
+      "text": null,
+      "reply_to_message_id": null,
+      "requested_speaker_id": null,
+      "input_cursor_seq": 0,
+      "prompt_template_id": "role_action@m02.1",
+      "requested_model": "deepseek-flash",
+      "returned_model": null,
+      "provider_request_id": null,
+      "input_tokens": null,
+      "output_tokens": null,
+      "cached_tokens": null,
+      "usage_unknown": 1,
+      "failure_kind": "UNKNOWN_REQUEST",
+      "sent": 0,
+      "budget_consumed": 1,
+      "latency_ms": 5,
+      "created_at": "2026-09-28T02:15:05.076642+00:00",
+      "finished_at": "2026-09-28T02:15:05.083690+00:00"
+    },
+    {
+      "actor": "林小满",
+      "action_id": "act_2ce49a9a77324f94adeb2c705ce74f6d",
+      "actor_id": "agt_0bdaabfcff3e4ba0b73052109a83d75c",
+      "status": "UNKNOWN",
+      "action": null,
+      "text": null,
+      "reply_to_message_id": null,
+      "requested_speaker_id": null,
+      "input_cursor_seq": 1,
+      "prompt_template_id": "role_action@m02.1",
+      "requested_model": "deepseek-flash",
+      "returned_model": null,
+      "provider_request_id": null,
+      "input_tokens": null,
+      "output_tokens": null,
+      "cached_tokens": null,
+      "usage_unknown": 1,
+      "failure_kind": "UNKNOWN_REQUEST",
+      "sent": 0,
+      "budget_consumed": 1,
+      "latency_ms": 5,
+      "created_at": "2026-09-28T02:15:05.109213+00:00",
+      "finished_at": "2026-09-28T02:15:05.116222+00:00"
+    },
+    {
+      "actor": "林小满",
+      "action_id": "act_82cc39c53d594f1991c1b3f4d3383035",
+      "actor_id": "agt_0bdaabfcff3e4ba0b73052109a83d75c",
+      "status": "UNKNOWN",
+      "action": null,
+      "text": null,
+      "reply_to_message_id": null,
+      "requested_speaker_id": null,
+      "input_cursor_seq": 1,
+      "prompt_template_id": "role_action@m02.1",
+      "requested_model": "deepseek-flash",
+      "returned_model": null,
+      "provider_request_id": null,
+      "input_tokens": null,
+      "output_tokens": null,
+      "cached_tokens": null,
+      "usage_unknown": 1,
+      "failure_kind": "UNKNOWN_REQUEST",
+      "sent": 0,
+      "budget_consumed": 1,
+      "latency_ms": 5,
+      "created_at": "2026-09-28T02:15:05.157875+00:00",
+      "finished_at": "2026-09-28T02:15:05.164691+00:00"
+    }
+  ],
+  "summary": {
+    "scene_id": "scn_684f9573537e4697a9f6f98447c0b61b",
+    "role_requests_used": 3,
+    "max_role_requests": 200,
+    "succeeded": 0,
+    "failed": 0,
+    "unknown": 3,
+    "last_failure_kind": "UNKNOWN_REQUEST"
+  },
+  "state_before_stop": {
+    "scene_id": "scn_684f9573537e4697a9f6f98447c0b61b",
+    "status": "PAUSED",
+    "pause_reason": "PROVIDER_ERROR",
+    "role_requests_used": 3,
+    "max_role_requests": 200,
+    "analysis_requests_used": 0,
+    "max_analysis_requests": 4,
+    "in_flight": false,
+    "last_committed_seq": 2
+  },
+  "stop": {
+    "request_id": "observe-scn_684f9573537e4697a9f6f98447c0b61b-stop",
+    "command": "STOP",
+    "accepted": true,
+    "deduplicated": false,
+    "run_state": "ENDED",
+    "pause_reason": null,
+    "event_id": null,
+    "event_status": null,
+    "detail": null
+  },
+  "finished_at": "2026-09-28T02:15:05.188580+00:00"
+}

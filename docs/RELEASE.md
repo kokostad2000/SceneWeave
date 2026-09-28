@@ -1,20 +1,29 @@
 # SceneWeave 发布资料
 
-适用范围：首版（M00～M07）。需求来源 `PRD.md`，验收对照见 `docs/ACCEPTANCE.md`，架构见 `docs/ARCHITECTURE.md`。
+适用范围：**v0.1.0 本机单用户试用版**（M00～M07）。需求来源 `PRD.md`，验收对照见 `docs/ACCEPTANCE.md`，架构见 `docs/ARCHITECTURE.md`。
 
 **当前交付结论：本机可试用；正式质量验收尚未完成。** 实际真实调用和剩余观察项见下文及第 7 节。
 
+**2026-09-28 交付收尾**：应用提交 `48a63eb86c89b7332d7e3080402f0ac2b6cdaf1b`，
+迁移 001～004；后端出站阻断 **459 passed**、可选上游假 SDK **7 passed**、前端 **49 passed**，
+类型检查与构建退出 0。新增七项为交付／观察脚本检查，产品代码保持该提交内容。
+三场景各两会话的真实观察共 84 次角色请求、6 次分析请求，95,490 tokens；两份室友分析标签与目标行为矛盾，
+已列 P1 反馈，六次 NORMAL 不代表语义验收通过。
+见 [首版报告](../state/reports/FIRST-RELEASE-2026-09-28.md)、[使用观察](USAGE_OBSERVATION.md)、[基线与恢复](BASELINE.md)。
+同期另一项真实分析定位发现 Q1/Q2，**M06 已退回进行中**；本基线是带已知限制的试用快照，
+不能据本轮工程回归宣称所有模块当前均已验收，见 [定位报告](../state/reports/ANALYSIS-LOCALIZATION-2026-09-28.md)。
+
 ---
 
-## 当前本机试用入口（2026-09-27）
+## 本机试用入口与历史运行记录
 
-已在本机启动真实 DeepSeek 后端 `http://127.0.0.1:8002` 与前端
+2026-09-27～28 已在本机启动并核对真实 DeepSeek 后端 `http://127.0.0.1:8002` 与前端
 `http://127.0.0.1:5175`，仅监听回环地址。可打开前端，使用已有的三个室友
 会话继续单步，也可创建新的预置会话。当前浏览器会话已有三次成功角色行动，
 分析抽屉已有两次真实调用记录；详见
 [`LIVE-TRIAL-2026-09-27.md`](../state/reports/LIVE-TRIAL-2026-09-27.md)。
-服务由本机开发进程维持，关闭终端或重启电脑后需依下文重新启动；数据库
-`backend/sceneweave-live-trial.db` 保留当前会话。**人工质量验收仍待完成**，
+服务由本机开发进程维持，进程可能已经退出，使用前检查健康接口；关闭终端或重启电脑后需依下文重新启动。数据库
+`backend/sceneweave-live-trial.db` 保留会话；本轮独立备份已记录迁移 004 和实际表计数。**人工质量验收仍待完成**，
 九份真实样本见 [`QUALITY_REVIEW.md`](QUALITY_REVIEW.md)。
 
 ## 1. 环境要求与依赖锁
@@ -25,16 +34,16 @@
 | uv | 0.12.9 | — |
 | Node.js | 24.2.0 | — |
 | pnpm | 11.19.0 | `frontend/pnpm-lock.yaml` |
-| 后端依赖 | fastapi 0.141.1、starlette 1.7.0、pydantic 2.13.5、pydantic-settings 2.15.0、uvicorn 0.54.0、pytest 8.4.2、pytest-asyncio 1.4.0、httpx 0.28.1 | `backend/uv.lock`（31 个包） |
+| 后端依赖 | fastapi 0.141.1、starlette 1.7.0、pydantic 2.13.5、pydantic-settings 2.15.0、uvicorn 0.54.0、pytest 8.4.2、pytest-asyncio 1.4.0、httpx 0.28.1 | `backend/uv.lock`（37 个包，含可选分析依赖） |
 | 前端依赖 | react／react-dom 19.3.0、vite 7.3.6、vitest 3.2.7、typescript 5.9.3、openapi-typescript 7.13.0、@testing-library/react 16.3.3 | `frontend/pnpm-lock.yaml` |
 | 可选外部分析依赖 | `behavior-psychology` 2.1.0（提交 `bd1e8fa…`）已在本机项目虚拟环境安装，离线及真实调用均已执行 | `backend/uv.lock` 的 `analysis` extra；语义质量仍需人工观察 |
 
 ## 2. 安装
 
 ```bash
-cd backend && uv sync --dev          # 受限沙箱下可先 export UV_CACHE_DIR=<repo>/.cache/uv
+cd backend && uv sync --dev --locked  # 受限沙箱下可先 export UV_CACHE_DIR=<repo>/.cache/uv
 uv sync --extra analysis --dev --locked  # 需要真实行为分析时，在 backend 目录执行
-cd ../frontend && pnpm install       # 受限沙箱下可加 --store-dir <repo>/.cache/pnpm-store
+cd ../frontend && pnpm install --frozen-lockfile  # 受限沙箱下可加 --store-dir <repo>/.cache/pnpm-store
 ```
 
 安装**不需要**任何模型密钥；分析能力默认关闭，也不要求外部包存在。
@@ -236,8 +245,8 @@ uv run python scripts/fake_local_model.py --port 11434 --model qwen2.5:7b   # �
 | # | 限制／缺项 | 影响 |
 |---|---|---|
 | 1 | **真实模型已接通** | 新版两次专项、九份真实样本和一次浏览器三人会话已执行；定向事件的可见性与一次语义效果已验证。九份样本的人工质量观察待完成，见最新试用报告 |
-| 2 | **仅本机服务** | `127.0.0.1:8002`／`5175` 正在运行；异机与公网部署未验证，超出本次本机目标 |
-| 3 | **真实行为分析已联调** | 专项 1 次与浏览器 2 次真实请求；一次偏题，修复提示后聚焦目标但降级，长期语义质量待人工复核 |
+| 2 | **仅本机服务** | 试用入口 `127.0.0.1:8002`／`5175`；进程需核对或重启。异机与公网部署未验证，超出本次本机目标 |
+| 3 | **真实行为分析已联调，语义问题未关闭** | 历史专项与浏览器共 3 次，本轮真实使用另 6 次 NORMAL；室友两份标签与安然主动行为矛盾（F1/P1），长期语义质量待人工复核，见 `docs/USAGE_OBSERVATION.md` |
 | 4 | ~~`thinking` 字段名待核对~~ **已关闭** | 官方文档确认 `thinking: {"type": "disabled"}`（默认 `enabled`）；见 `docs/SOURCES.md` §1.1。真实响应的 `finish_reason=stop`、`usage`（含 `cached_tokens`）与 `id` 语义已在 2026-09-27 的 22 次调用中观察到，`U-M03-2` 由此可关闭；90 秒期限（U-M03-3）仍未触发观察 |
 | 5 | 聊天质量**人工观察**未做 | 三预置场景各三份真实样本已留档；`docs/QUALITY_REVIEW.md` 人工结论待填写，便利店全员沉默样本需重点判断 |
 | 6 | 界面人工视觉验收未做 | 组件行为有 49 项测试，但没有人工视觉与键盘可达性验收 |
@@ -246,6 +255,7 @@ uv run python scripts/fake_local_model.py --port 11434 --model qwen2.5:7b   # �
 | 9 | `docs/SOURCES.md` 已建立，但 PRD 的 `[S1]`～`[S9]` 仍缺失 | 已记录本项目**实际核对过**的来源（DeepSeek API 文档）；`[S1]`～`[S9]` 原始地址不在 PRD 内，**未编造**，保持未验证 |
 | 10 | 浏览器 EventSource 自动重连未验证 | 实际 HTTP 按序补发已检查；代理中断测试中前端重启引起整页刷新，不能证明 EventSource 自动重连 |
 | 11 | 已知非致命警告 | `starlette 1.7.0` 对 `httpx 0.28.1` 的 `StarletteDeprecationWarning` |
+| 12 | 短时观察不代表长期稳定性 | 本轮六会话连续采集约两分钟；沉默收束、事件语义效果与生成额外事实见 F2～F4 |
 
 ## 8. 模块证据索引
 
@@ -255,9 +265,9 @@ uv run python scripts/fake_local_model.py --port 11434 --model qwen2.5:7b   # �
 | M01 角色与场景 | `state/reports/M01.md` | V1–V12 |
 | M02 可见性与调度 | `state/reports/M02.md` | V1–V7 |
 | M03 模型适配 | `state/reports/M03.md` | V1–V6 |
-| M04 运行与事件 | `state/reports/M04.md` | V1–V10 |
+| M04 运行与事件 | `state/reports/M04.md`、`state/reports/FIX-runtime-consistency.md` | V1–V10；维护修复 R1–R7 |
 | M05 操作界面 | `state/reports/M05.md` | V1–V6 |
-| M06 行为分析 | `state/reports/M06.md` | V1–V7 |
+| M06 行为分析 | `state/reports/M06.md`、`state/reports/ANALYSIS-LOCALIZATION-2026-09-28.md` | 历史工程 V1–V7；当前进行中，Q1/Q2 待修复 |
 | M07 集成与交付 | `state/reports/M07.md` | V1–V8 |
 | 硬验收矩阵 | `docs/ACCEPTANCE.md` | 14 项硬验收 |
 | 质量观察样本（Mock） | `state/reports/quality-observation-mock.json` | 唯一预置场景 ×3 |
@@ -284,12 +294,13 @@ cd backend && uv run python scripts/quality_observation.py --out ../state/report
 scripts/export_contracts.sh
 
 # 测试
-cd backend && uv run pytest                      # 423 项
+cd backend && uv run --no-sync pytest            # 459 项
+cd backend && uv run --no-sync pytest tests_optional/test_external_upstream.py  # 7 项，假 SDK
 cd frontend && pnpm run test                     # 49 项
 cd frontend && pnpm run typecheck && pnpm run build
 
 # 出站网络阻断下跑测试（证明无真实外部调用）
-cd backend && PYTHONPATH=/tmp uv run pytest -p no_net_plugin
+cd backend && uv run --no-sync pytest -p scripts.block_outbound_plugin -r a
 
 # 备份 / 恢复
 scripts/backup_db.sh

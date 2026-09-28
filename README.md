@@ -7,20 +7,22 @@
 - 架构说明：[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - **验收矩阵**：[docs/ACCEPTANCE.md](docs/ACCEPTANCE.md)
 - **发布资料 / 已知限制**：[docs/RELEASE.md](docs/RELEASE.md)
+- **v0.1.0 基线与恢复**：[docs/BASELINE.md](docs/BASELINE.md)
 - 开发状态：[state/STATUS.md](state/STATUS.md)
 - 各模块任务书与报告：[tasks/](tasks/)、[state/reports/](state/reports/)
 
 ## 当前进度
 
-**M00～M07 全部已验收。** 工程与契约、角色与场景、可见性与调度、模型适配、运行与事件、
-操作界面、行为分析、集成与交付均已实现，并有确定性 Mock 证据。
+**M00～M07 已交付工程实现与确定性核验证据。M06 当前进行中。** 2026-09-28 真实分析定位发现
+材料不足仍贴趋势标签、无依据附加标签，M06 已退回进行中；历史工程验收记录保留。
+详见 [分析定位报告](state/reports/ANALYSIS-LOCALIZATION-2026-09-28.md)。
 
-**交付结论：未达到「可试用」**——服务未部署、外部分析仓库未安装、**定向事件的真实效果**未验证、聊天质量与界面的人工观察未做。
-真实模型**已接通并跑过真实会话**（2026-09-26／27 两场 `deepseek-flash`；第二场 22 次调用全部成功，22 条消息中 21 条带
-`reply_to_message_id`）。期间在真实调用中发现的引用缺陷已修复并回归，见
-[state/reports/FIX-reply-reference.md](state/reports/FIX-reply-reference.md)；
-每场角色请求上限默认值经人工裁决由 24 上调为 200，见 [state/reports/CHANGE-role-request-limit.md](state/reports/CHANGE-role-request-limit.md)。
-详见 [docs/RELEASE.md](docs/RELEASE.md) §7 与 [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md) §8。
+**交付结论：v0.1.0 本机可试用，人工质量验收尚未完成。** 已有真实三人聊天、
+定向事件与行为分析证据，可选分析依赖已在项目虚拟环境安装；分析默认仍关闭。
+当前应用代码基线为 `48a63eb86c89b7332d7e3080402f0ac2b6cdaf1b`，数据库迁移至 004。
+本轮交付核验与真实使用观察见 [首版报告](state/reports/FIRST-RELEASE-2026-09-28.md)。
+代理样本观察与人工验收分开记录；浏览器自动重连、长期运行及异机部署仍未验证。
+运行进程可能已退出，使用前按下文启动并检查健康接口；历史启动记录不代表服务当前在线。
 
 ## 目录
 
@@ -64,10 +66,13 @@ curl -sS http://127.0.0.1:8000/api/health | python3 -m json.tool   # 应显示 m
 
 ```bash
 # 后端
-cd backend && uv sync --dev
+cd backend && uv sync --dev --locked
+
+# 需要真实行为分析时，在 backend 目录安装可选依赖
+uv sync --extra analysis --dev --locked
 
 # 前端
-cd frontend && pnpm install
+cd frontend && pnpm install --frozen-lockfile
 ```
 
 ## 启动（仅监听本机）
@@ -85,15 +90,18 @@ cd frontend && pnpm run dev
 ## 测试
 
 ```bash
-# 后端（423 项）
-cd backend && uv run pytest
+# 后端（459 项，含本轮 7 项交付／观察脚本检查）
+cd backend && uv run --no-sync pytest
+
+# 外部分析包已安装时：可选上游适配检查（7 项，使用假 SDK）
+cd backend && uv run --no-sync pytest tests_optional/test_external_upstream.py
 
 # 前端（49 项）
 cd frontend && pnpm run test
 cd frontend && pnpm run typecheck && pnpm run build
 
 # 证明不发起真实外部调用：阻断出站网络后仍全部通过
-cd backend && PYTHONPATH=/tmp uv run pytest -p no_net_plugin
+cd backend && uv run --no-sync pytest -p scripts.block_outbound_plugin -r a
 ```
 
 ## 快速核对 M01（配置期接口）
@@ -116,10 +124,11 @@ SQLite 文件默认在 `backend/sceneweave.db`；启动时自动执行迁移（�
 ## 行为分析（默认关闭）
 
 分析能力默认关闭，且**不要求**外部分析仓库已安装；开启后若外部包不可用，会明确报告原因
-而不是崩溃。真实模型冒烟需要显式开关与密钥：
+而不是崩溃。上游锁定到 `bd1e8fa97b395223d629539022fbd92e1a5429d7`，安装见上文。
+真实模型冒烟使用已有凭证配置并需要显式开关：
 
 ```bash
-cd backend && SCENEWEAVE_MODEL_API_KEY=... uv run python scripts/live_smoke.py --live --confirm-spend
+cd backend && uv run --no-sync python scripts/live_smoke.py --live
 ```
 
 ## 契约产物
@@ -135,10 +144,22 @@ scripts/export_contracts.sh
 
 ## 配置
 
-全部配置通过环境变量提供，前缀 `SCENEWEAVE_`（例如 `SCENEWEAVE_MODEL_API_KEY`、
-`SCENEWEAVE_DATABASE_URL`）。密钥**只**从环境变量读取，不写入代码或记录。
+配置通过环境变量或项目 `.env` 提供，前缀 `SCENEWEAVE_`（例如 `SCENEWEAVE_MODEL_API_KEY`、
+`SCENEWEAVE_DATABASE_URL`）。密钥由应用配置层加载，不写入代码、业务记录或日志。
 未配置密钥时健康检查仍返回 200，仅 `model_configured=false`。
 
-本版本的真实模型调用需要显式 `live` 开关与密钥（见上）；行为分析的外部依赖仍未安装，分析能力默认关闭。
+真实验收／观察脚本需要显式 `--live` 与有效配置；日常服务按供应商配置运行。
+行为分析默认关闭，启用时设置 `SCENEWEAVE_ANALYSIS_ENABLED=true` 并安装 `analysis` extra。
 每场预算默认「角色请求 200 / 分析请求 4」，创建会话时可在 [1, 200] 内下调，开始后锁定；单步一次只发一次调用，
 自动运行按原有暂停条件停下。
+
+## 持续使用观察
+
+```bash
+# 项目内新的证据目录；三个场景各两会话，上限 84 次角色请求和 6 次分析请求
+cd backend && uv run --no-sync python scripts/observe_usage.py --live --rounds 2 \
+  --out ../state/reports/usage-new-run
+```
+
+脚本使用完整应用 API 链路及独立数据库，保留原文、合法沉默、耗时与实际 token；
+供应商失败停止采集且返回非零，不覆盖旧证据。该脚本不验证浏览器操作或长期稳定性。

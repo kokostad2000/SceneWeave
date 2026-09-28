@@ -1,0 +1,16 @@
+{
+  "source_package": "state/restores/v0.1.0-candidate",
+  "backup_sha256": "b7edf5b15a5258ff09f9ee41869c31a276c083c53ef9784ec97752132df1b524",
+  "integrity": "ok",
+  "counts": {
+    "scenes": 4,
+    "messages": 25,
+    "scene_turns": 25,
+    "analysis_records": 2
+  },
+  "applied_migrations_on_start": [],
+  "health_http": 200,
+  "history_http": 200,
+  "model_provider": "mock",
+  "new_provider_requests": 0
+}

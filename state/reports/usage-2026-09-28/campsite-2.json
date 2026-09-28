@@ -1,0 +1,273 @@
+{
+  "engine": "live-deepseek",
+  "preset_key": "campsite",
+  "repeat": 2,
+  "started_at": "2026-09-28T02:15:05.628148+00:00",
+  "steps": [
+    {
+      "phase": "natural",
+      "index": 1,
+      "api_elapsed_ms": 20,
+      "accepted": true,
+      "run_state": "PAUSED",
+      "pause_reason": "PROVIDER_ERROR",
+      "detail": null
+    },
+    {
+      "phase": "public_event",
+      "index": 1,
+      "api_elapsed_ms": 20,
+      "accepted": true,
+      "run_state": "PAUSED",
+      "pause_reason": "PROVIDER_ERROR",
+      "detail": null
+    },
+    {
+      "phase": "targeted_event",
+      "index": 1,
+      "api_elapsed_ms": 21,
+      "accepted": true,
+      "run_state": "PAUSED",
+      "pause_reason": "PROVIDER_ERROR",
+      "detail": null
+    }
+  ],
+  "events": [
+    {
+      "visibility": "ALL",
+      "body": "营地广播提醒风正在变大，天黑前需要检查帐篷固定。大家可以自行决定怎么安排。",
+      "ack": {
+        "request_id": "observe-scn_9abc6689a52047f689f63dec4946ba4a-public_event",
+        "command": null,
+        "accepted": true,
+        "deduplicated": false,
+        "run_state": "PAUSED",
+        "pause_reason": "PROVIDER_ERROR",
+        "event_id": "evt_f65956a2ccfc456cb3ebb03fb0c16b6d",
+        "event_status": "EFFECTIVE",
+        "detail": "事件已生效"
+      }
+    },
+    {
+      "visibility": "TARGETED",
+      "body": "只有你收到营地短信：河边步道即将临时关闭，其他人暂时不知道。",
+      "ack": {
+        "request_id": "observe-scn_9abc6689a52047f689f63dec4946ba4a-targeted_event",
+        "command": null,
+        "accepted": true,
+        "deduplicated": false,
+        "run_state": "PAUSED",
+        "pause_reason": "PROVIDER_ERROR",
+        "event_id": "evt_54154e556ae34f388615918addb52bb8",
+        "event_status": "EFFECTIVE",
+        "detail": "事件已生效"
+      }
+    }
+  ],
+  "analysis": null,
+  "scene_id": "scn_9abc6689a52047f689f63dec4946ba4a",
+  "title": "周末露营地的三个人",
+  "agents": [
+    {
+      "agent_id": "agt_fa5c370caabd4bd59ed315d075e9d462",
+      "scene_id": "scn_9abc6689a52047f689f63dec4946ba4a",
+      "name": "何澜",
+      "order_index": 0,
+      "snapshot": {
+        "name": "何澜",
+        "persona": "被临时推举的带队人，认真但有点紧绷。",
+        "speech_style": "喜欢先分工再说话，句子完整。",
+        "initial_goal": "想在天黑前把营地安顿好。",
+        "private_background": "第一次带队，心里没底，怕出错被人看出来。",
+        "source_template_id": "tpl_0253d8d16bf94c7f97bde189868cccf5",
+        "captured_at": "2026-09-28T02:15:05.638953Z"
+      },
+      "created_at": "2026-09-28T02:15:05.638953Z"
+    },
+    {
+      "agent_id": "agt_c15c1f00a99b4d668d688eb5b3d0e9d7",
+      "scene_id": "scn_9abc6689a52047f689f63dec4946ba4a",
+      "name": "苏木",
+      "order_index": 1,
+      "snapshot": {
+        "name": "苏木",
+        "persona": "露营新手，什么都想试一下。",
+        "speech_style": "问题多、语气上扬，容易兴奋。",
+        "initial_goal": "想学会搭帐篷。",
+        "private_background": "报名时把自己的经验说得比实际多了一些。",
+        "source_template_id": "tpl_95e103fa9b0b4d1396b5a3f5b673a870",
+        "captured_at": "2026-09-28T02:15:05.638953Z"
+      },
+      "created_at": "2026-09-28T02:15:05.638953Z"
+    },
+    {
+      "agent_id": "agt_7da1d8ca08ec41b7a2f88813ae634198",
+      "scene_id": "scn_9abc6689a52047f689f63dec4946ba4a",
+      "name": "涂山",
+      "order_index": 2,
+      "snapshot": {
+        "name": "涂山",
+        "persona": "常来露营的人，话不多，更愿意自己待着。",
+        "speech_style": "慢、少、常以一句话结束话题。",
+        "initial_goal": "想安静地钓一会儿鱼。",
+        "private_background": "最近一直睡不好，出来是想换个环境。",
+        "source_template_id": "tpl_a934c78d60d544bbbf01a4c718ac8e4e",
+        "captured_at": "2026-09-28T02:15:05.638953Z"
+      },
+      "created_at": "2026-09-28T02:15:05.638953Z"
+    }
+  ],
+  "targeted_visibility_before_response": {
+    "何澜": false,
+    "苏木": true,
+    "涂山": false
+  },
+  "timeline": [
+    {
+      "kind": "event",
+      "seq": 1,
+      "message": null,
+      "event": {
+        "body": "营地广播提醒风正在变大，天黑前需要检查帐篷固定。大家可以自行决定怎么安排。",
+        "visibility": "ALL",
+        "target_agent_id": null,
+        "event_id": "evt_f65956a2ccfc456cb3ebb03fb0c16b6d",
+        "scene_id": "scn_9abc6689a52047f689f63dec4946ba4a",
+        "seq": 1,
+        "status": "EFFECTIVE",
+        "schema_version": 1,
+        "accepted_at": "2026-09-28T02:15:05.674308Z",
+        "effective_at": "2026-09-28T02:15:05.674308Z"
+      },
+      "author_name": null
+    },
+    {
+      "kind": "event",
+      "seq": 2,
+      "message": null,
+      "event": {
+        "body": "只有你收到营地短信：河边步道即将临时关闭，其他人暂时不知道。",
+        "visibility": "TARGETED",
+        "target_agent_id": "agt_c15c1f00a99b4d668d688eb5b3d0e9d7",
+        "event_id": "evt_54154e556ae34f388615918addb52bb8",
+        "scene_id": "scn_9abc6689a52047f689f63dec4946ba4a",
+        "seq": 2,
+        "status": "EFFECTIVE",
+        "schema_version": 1,
+        "accepted_at": "2026-09-28T02:15:05.705520Z",
+        "effective_at": "2026-09-28T02:15:05.705520Z"
+      },
+      "author_name": null
+    }
+  ],
+  "analysis_not_run_reason": "无公开发言材料，未发起分析请求",
+  "actions": [
+    {
+      "actor": "何澜",
+      "action_id": "act_0a337965b9e444e3b6133e43691a3d69",
+      "actor_id": "agt_fa5c370caabd4bd59ed315d075e9d462",
+      "status": "UNKNOWN",
+      "action": null,
+      "text": null,
+      "reply_to_message_id": null,
+      "requested_speaker_id": null,
+      "input_cursor_seq": 0,
+      "prompt_template_id": "role_action@m02.1",
+      "requested_model": "deepseek-flash",
+      "returned_model": null,
+      "provider_request_id": null,
+      "input_tokens": null,
+      "output_tokens": null,
+      "cached_tokens": null,
+      "usage_unknown": 1,
+      "failure_kind": "UNKNOWN_REQUEST",
+      "sent": 0,
+      "budget_consumed": 1,
+      "latency_ms": 5,
+      "created_at": "2026-09-28T02:15:05.656790+00:00",
+      "finished_at": "2026-09-28T02:15:05.663652+00:00"
+    },
+    {
+      "actor": "何澜",
+      "action_id": "act_8de617a67d174479a4f3dc2ec7351135",
+      "actor_id": "agt_fa5c370caabd4bd59ed315d075e9d462",
+      "status": "UNKNOWN",
+      "action": null,
+      "text": null,
+      "reply_to_message_id": null,
+      "requested_speaker_id": null,
+      "input_cursor_seq": 1,
+      "prompt_template_id": "role_action@m02.1",
+      "requested_model": "deepseek-flash",
+      "returned_model": null,
+      "provider_request_id": null,
+      "input_tokens": null,
+      "output_tokens": null,
+      "cached_tokens": null,
+      "usage_unknown": 1,
+      "failure_kind": "UNKNOWN_REQUEST",
+      "sent": 0,
+      "budget_consumed": 1,
+      "latency_ms": 5,
+      "created_at": "2026-09-28T02:15:05.689580+00:00",
+      "finished_at": "2026-09-28T02:15:05.696522+00:00"
+    },
+    {
+      "actor": "何澜",
+      "action_id": "act_84f80e6428f548a2ba2aba737ae04cc8",
+      "actor_id": "agt_fa5c370caabd4bd59ed315d075e9d462",
+      "status": "UNKNOWN",
+      "action": null,
+      "text": null,
+      "reply_to_message_id": null,
+      "requested_speaker_id": null,
+      "input_cursor_seq": 1,
+      "prompt_template_id": "role_action@m02.1",
+      "requested_model": "deepseek-flash",
+      "returned_model": null,
+      "provider_request_id": null,
+      "input_tokens": null,
+      "output_tokens": null,
+      "cached_tokens": null,
+      "usage_unknown": 1,
+      "failure_kind": "UNKNOWN_REQUEST",
+      "sent": 0,
+      "budget_consumed": 1,
+      "latency_ms": 6,
+      "created_at": "2026-09-28T02:15:05.732972+00:00",
+      "finished_at": "2026-09-28T02:15:05.740691+00:00"
+    }
+  ],
+  "summary": {
+    "scene_id": "scn_9abc6689a52047f689f63dec4946ba4a",
+    "role_requests_used": 3,
+    "max_role_requests": 200,
+    "succeeded": 0,
+    "failed": 0,
+    "unknown": 3,
+    "last_failure_kind": "UNKNOWN_REQUEST"
+  },
+  "state_before_stop": {
+    "scene_id": "scn_9abc6689a52047f689f63dec4946ba4a",
+    "status": "PAUSED",
+    "pause_reason": "PROVIDER_ERROR",
+    "role_requests_used": 3,
+    "max_role_requests": 200,
+    "analysis_requests_used": 0,
+    "max_analysis_requests": 4,
+    "in_flight": false,
+    "last_committed_seq": 2
+  },
+  "stop": {
+    "request_id": "observe-scn_9abc6689a52047f689f63dec4946ba4a-stop",
+    "command": "STOP",
+    "accepted": true,
+    "deduplicated": false,
+    "run_state": "ENDED",
+    "pause_reason": null,
+    "event_id": null,
+    "event_status": null,
+    "detail": null
+  },
+  "finished_at": "2026-09-28T02:15:05.763508+00:00"
+}

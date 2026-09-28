@@ -1,0 +1,53 @@
+{
+  "backend": {
+    "command": ".venv/bin/python -m pytest -p scripts.block_outbound_plugin -p no:cacheprovider -r a --tb=short",
+    "exit_code": 0,
+    "tests": 459,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "optional": {
+    "command": ".venv/bin/python -m pytest tests_optional/test_external_upstream.py -p scripts.block_outbound_plugin -p no:cacheprovider -r a --tb=short",
+    "exit_code": 0,
+    "tests": 7,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "frontend": {
+    "command": "pnpm run test",
+    "exit_code": 0,
+    "passed": 49,
+    "files": 6
+  },
+  "build": {
+    "command": "pnpm run build",
+    "exit_code": 0,
+    "includes_typecheck": true
+  },
+  "failed_sandbox_backend": {
+    "exit_code": 1,
+    "passed": 453,
+    "failed": 6,
+    "reason": "loopback bind PermissionError"
+  },
+  "restored": {
+    "directory": "state/restores/v0.1.0-validation/SceneWeave",
+    "backend_install": "uv sync --dev --locked --offline",
+    "frontend_install": "pnpm install --frozen-lockfile --offline --store-dir <project>/.cache/pnpm-store",
+    "backend_tests": 459,
+    "backend_failures": 0,
+    "skipped": 0,
+    "frontend_tests": 49,
+    "typecheck_exit": 0,
+    "build_exit": 0,
+    "contracts_deleted_and_rebuilt": true,
+    "test_root_name": "SceneWeave",
+    "initial_wrong_directory": {
+      "passed": 458,
+      "failed": 1,
+      "reason": "existing assertion requires REPO_ROOT.name == SceneWeave"
+    }
+  }
+}

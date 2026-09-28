@@ -1,0 +1,13 @@
+{
+  "deleted_and_rebuilt": [
+    "backend/openapi.json",
+    "frontend/src/api/generated/contract-summary.json",
+    "frontend/src/api/generated/schema.d.ts"
+  ],
+  "exit_code": 0,
+  "hashes": {
+    "backend/openapi.json": "51c58d7341ca37382f274fd21965e0993c190ee15a9967b155e0844b375a6217",
+    "frontend/src/api/generated/contract-summary.json": "d434a041acd7b1618e0f3427d03d30a273be6abd7333c1be2b41c6ae96309883",
+    "frontend/src/api/generated/schema.d.ts": "86144e5bb613ed13ed97dcf79083638c77c29ab8137b5476453e9d52c4e3b990"
+  }
+}

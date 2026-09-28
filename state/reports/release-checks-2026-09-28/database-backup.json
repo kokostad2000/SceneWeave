@@ -1,0 +1,17 @@
+{
+  "backup": "state/backups/v0.1.0-live-trial-20260928.db",
+  "integrity": "ok",
+  "counts": {
+    "scenes": 4,
+    "messages": 25,
+    "scene_turns": 25,
+    "analysis_records": 2
+  },
+  "migrations": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "sha256": "b7edf5b15a5258ff09f9ee41869c31a276c083c53ef9784ec97752132df1b524"
+}
