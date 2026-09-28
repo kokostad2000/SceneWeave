@@ -18,6 +18,17 @@
 不保存密钥、认证头、环境变量或 reasoning_content。剧情由 Mock 写入独立测试库，
 真实 API 只做分析，未使用本机试用数据库。语义判断逐例附原文依据。
 
+### 离线原始证据归档（2026-09-28）
+
+五份假 SDK JSON 已按人工要求归入
+[test-evidence-2026-09-28.zip](archives/test-evidence-2026-09-28.zip)，
+逐文件哈希及独立恢复核验通过后移除散文件。
+包内成员前缀为 `state/reports/live/`，文件为 `analysis-localization-20260928-`
+加以下后缀：`fake.json`、`fake2.json`、`fake5.json`、`fake6.json`、`retest-fake.json`。
+本报告命令表中的假 SDK 输出路径是执行当时的原始路径，现对应 ZIP 中同名成员。
+清单、ZIP SHA-256、核验和恢复方法见[归档说明](archives/README.md)。
+两份真实定位 JSON 继续保存在原位置，语义复核与测试结果保持原记录。
+
 ## 执行方法与命令
 
 脚本：`backend/scripts/analysis_localization.py`。默认假 SDK；真实分析必须带 `--live`。
@@ -36,10 +47,10 @@
 | `git diff --check` | 0 | 本轮修改无空白错误 |
 
 真实命令经沙箱提权执行，调用使用 Settings 的既有配置；仅记录配置布尔值和来源，不打印凭证。
-首轮准备脚本时曾有失败，均未删除：fake／fake2（退出 1）将独立分析预算增加误作剧情变化，
+首轮准备脚本时曾有失败，原始记录完整保留（现归档）：fake／fake2（退出 1）将独立分析预算增加误作剧情变化，
 第一版还复用客户端累积请求计数；fake3／fake4（退出 1）误用时间线角色字段，实际应为
 `message.actor_id`；fake5（退出 1）误从顶层读取私有背景，实际在 `agent.snapshot`。
-对应工具输出保留，存在的 fake／fake2／fake5 JSON 保留。修复只涉及新取证脚本，
+对应工具输出保留，存在的 fake／fake2／fake5 JSON 现保存在上述归档。修复只涉及新取证脚本，
 未删用例或放宽现有产品测试；仅排除两个响应中同一个独立分析预算字段，其余快照逐项严格比较。
 
 ## 1. 工程链路

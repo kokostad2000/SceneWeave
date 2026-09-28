@@ -12,7 +12,19 @@
 
 ## 实际命令与结果
 
-命令从 `backend/` 或 `frontend/` 执行，归档／文档核对从仓库根执行。日志／JUnit 与汇总为 `state/reports/release-checks-2026-09-28/`。
+命令从 `backend/` 或 `frontend/` 执行，归档／文档核对从仓库根执行。
+日志与汇总保留在 `state/reports/release-checks-2026-09-28/`；JUnit 原始文件现按下述说明归档。
+
+### JUnit 原始证据归档（2026-09-28）
+
+五份 JUnit XML 已按人工要求归入
+[test-evidence-2026-09-28.zip](archives/test-evidence-2026-09-28.zip)，
+逐文件哈希及独立恢复核验通过后移除散文件。
+包内成员前缀为 `state/reports/release-checks-2026-09-28/`，文件为：
+`backend.xml`、`backend-verified.xml`、`optional.xml`、`restored-backend.xml`、
+`restored-named-backend.xml`。
+下表的 XML 文件名指向 ZIP 中同名成员；首次失败与最终通过记录均保留，结果未改写。
+清单、ZIP SHA-256、核验和恢复方法见[归档说明](archives/README.md)。
 
 | 检查／实际命令 | 退出码 | 结果 |
 |---|---:|---|
@@ -57,7 +69,7 @@
 | 恢复目录 `uv sync --dev --locked --offline --python <原 Python>`，项目内 UV_CACHE_DIR | 0 | **新建**独立虚拟环境，按锁文件装包；非复制旧 .venv。首次日志相对路径错误退出 1，未安装，改为绝对路径后完成 |
 | 恢复目录首次 `pnpm install --frozen-lockfile --offline` | 130（主动中止） | 缓存不齐，registry 元数据出现 ENOTFOUND 重试；不计安装通过 |
 | `pnpm install --frozen-lockfile --store-dir <项目>/.cache/pnpm-store`（获准联网） | 0 | 恢复目录新建 node_modules，未复制旧安装；8.1 秒 |
-| 首次恢复完整后端回归（末级目录为版本号） | 1 | 458 passed、1 failed：既有断言要求 REPO_ROOT.name 为 SceneWeave；未删除测试或放宽断言 |
+| 首次恢复完整后端回归（末级目录为版本号） | 1 | 458 passed、1 failed：既有断言要求 REPO_ROOT.name 为 SceneWeave；未删除测试或放宽断言；原始证据 `restored-backend.xml` |
 | 再恢复至 `state/restores/v0.1.0-validation/SceneWeave`，重新 uv／pnpm 锁定离线安装 | 0／0 | 两边独立安装完成；前端缓存已齐，离线安装 1.5 秒；实际恢复说明保留正确末级目录名 |
 | 在新恢复目录**删除三个契约产物**后执行唯一 `scripts/export_contracts.sh` | 0 | 全部重建，三个 SHA-256 与原始基线完全相同；`restored-contracts.json` |
 | 新恢复目录完整后端回归（允许回环、阻断外网） | 0 | **459 passed**，0 skip／xfail；`restored-named-backend.xml` |
