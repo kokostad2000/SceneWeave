@@ -11,10 +11,12 @@ from datetime import datetime
 
 from ..contracts import (
     ActionRecord,
+    ActionType,
     Event,
     EventStatus,
     EventVisibility,
     Message,
+    ModelActionResponse,
     PauseReason,
     RoleCursor,
     RunState,
@@ -83,17 +85,16 @@ class RuntimeRepository:
         """在同一事务内原子分配下一个 ``seq``（消息与事件共享序列）。"""
 
         with self._db.transaction() as conn:
-            conn.execute(
-                "INSERT INTO scene_seq (scene_id, last_seq) VALUES (?, 0)"
-                " ON CONFLICT (scene_id) DO NOTHING",
-                (scene_id,),
-            )
-            conn.execute(
-                "UPDATE scene_seq SET last_seq = last_seq + 1 WHERE scene_id = ?", (scene_id,)
-            )
-            row = conn.execute(
-                "SELECT last_seq FROM scene_seq WHERE scene_id = ?", (scene_id,)
-            ).fetchone()
+            return self._next_seq(conn, scene_id)
+
+    @staticmethod
+    def _next_seq(conn: sqlite3.Connection, scene_id: str) -> int:
+        conn.execute(
+            "INSERT INTO scene_seq (scene_id, last_seq) VALUES (?, 0)"
+            " ON CONFLICT (scene_id) DO NOTHING", (scene_id,)
+        )
+        conn.execute("UPDATE scene_seq SET last_seq = last_seq + 1 WHERE scene_id = ?", (scene_id,))
+        row = conn.execute("SELECT last_seq FROM scene_seq WHERE scene_id = ?", (scene_id,)).fetchone()
         return int(row["last_seq"])
 
     def last_seq(self, scene_id: str) -> int:
@@ -187,21 +188,25 @@ class RuntimeRepository:
 
     def insert_message(self, message: Message) -> None:
         with self._db.transaction() as conn:
-            conn.execute(
-                "INSERT INTO messages (message_id, scene_id, seq, actor_id, text,"
-                " reply_to_message_id, requested_speaker_id, created_at)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (
-                    message.message_id,
-                    message.scene_id,
-                    message.seq,
-                    message.actor_id,
-                    message.text,
-                    message.reply_to_message_id,
-                    message.requested_speaker_id,
-                    message.created_at.isoformat(),
-                ),
-            )
+            self._insert_message(conn, message)
+
+    @staticmethod
+    def _insert_message(conn: sqlite3.Connection, message: Message) -> None:
+        conn.execute(
+            "INSERT INTO messages (message_id, scene_id, seq, actor_id, text,"
+            " reply_to_message_id, requested_speaker_id, created_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                message.message_id,
+                message.scene_id,
+                message.seq,
+                message.actor_id,
+                message.text,
+                message.reply_to_message_id,
+                message.requested_speaker_id,
+                message.created_at.isoformat(),
+            ),
+        )
 
     def list_messages(self, scene_id: str) -> list[Message]:
         with self._db.connection() as conn:
@@ -259,6 +264,8 @@ class RuntimeRepository:
                     1 if budget_consumed else 0,
                 ),
             )
+            if budget_consumed:
+                self._bump_budget(conn, scene_id, role_requests=1)
 
     def finish_turn(
         self,
@@ -281,39 +288,165 @@ class RuntimeRepository:
         budget_consumed: bool = True,
         latency_ms: int | None = None,
     ) -> None:
-        usage = usage or Usage()
         with self._db.transaction() as conn:
-            conn.execute(
-                "UPDATE scene_turns SET status = ?, action = ?, text = ?,"
-                " reply_to_message_id = ?, requested_speaker_id = ?, message_id = ?,"
-                " requested_model = ?, returned_model = ?, provider_request_id = ?,"
-                " input_tokens = ?, output_tokens = ?, cached_tokens = ?, usage_unknown = ?,"
-                " failure_kind = ?, failure_detail = ?, sent = ?, budget_consumed = ?,"
-                " latency_ms = ?, finished_at = ?"
-                " WHERE attempt_id = ?",
-                (
-                    status.value,
-                    action,
-                    text,
-                    reply_to_message_id,
-                    requested_speaker_id,
-                    message_id,
-                    requested_model,
-                    returned_model,
-                    provider_request_id,
-                    usage.input_tokens,
-                    usage.output_tokens,
-                    usage.cached_tokens,
-                    1 if usage.is_unknown else 0,
-                    failure_kind,
-                    failure_detail,
-                    1 if sent else 0,
-                    1 if budget_consumed else 0,
-                    latency_ms,
-                    finished_at.isoformat(),
-                    attempt_id,
-                ),
+            if not budget_consumed:
+                turn = conn.execute(
+                    "SELECT scene_id, budget_consumed FROM scene_turns WHERE attempt_id = ?",
+                    (attempt_id,),
+                ).fetchone()
+                if turn is not None and turn["budget_consumed"]:
+                    self._refund_budget(conn, attempt_id, turn["scene_id"])
+            self._finish_turn(
+                conn, attempt_id,
+                status=status,
+                finished_at=finished_at,
+                action=action,
+                text=text,
+                reply_to_message_id=reply_to_message_id,
+                requested_speaker_id=requested_speaker_id,
+                message_id=message_id,
+                requested_model=requested_model,
+                returned_model=returned_model,
+                provider_request_id=provider_request_id,
+                usage=usage,
+                failure_kind=failure_kind,
+                failure_detail=failure_detail,
+                sent=sent,
+                budget_consumed=budget_consumed,
+                latency_ms=latency_ms,
             )
+
+    @staticmethod
+    def _finish_turn(
+        conn: sqlite3.Connection,
+        attempt_id: str,
+        *,
+        status: TurnStatus,
+        finished_at: datetime,
+        action: str | None = None,
+        text: str | None = None,
+        reply_to_message_id: str | None = None,
+        requested_speaker_id: str | None = None,
+        message_id: str | None = None,
+        requested_model: str | None = None,
+        returned_model: str | None = None,
+        provider_request_id: str | None = None,
+        usage: Usage | None = None,
+        failure_kind: str | None = None,
+        failure_detail: str | None = None,
+        sent: bool = True,
+        budget_consumed: bool = True,
+        latency_ms: int | None = None,
+    ) -> None:
+        usage = usage or Usage()
+        conn.execute(
+            "UPDATE scene_turns SET status = ?, action = ?, text = ?,"
+            " reply_to_message_id = ?, requested_speaker_id = ?, message_id = ?,"
+            " requested_model = ?, returned_model = ?, provider_request_id = ?,"
+            " input_tokens = ?, output_tokens = ?, cached_tokens = ?, usage_unknown = ?,"
+            " failure_kind = ?, failure_detail = ?, sent = ?, budget_consumed = ?,"
+            " latency_ms = ?, finished_at = ?"
+            " WHERE attempt_id = ?",
+            (
+                status.value,
+                action,
+                text,
+                reply_to_message_id,
+                requested_speaker_id,
+                message_id,
+                requested_model,
+                returned_model,
+                provider_request_id,
+                usage.input_tokens,
+                usage.output_tokens,
+                usage.cached_tokens,
+                1 if usage.is_unknown else 0,
+                failure_kind,
+                failure_detail,
+                1 if sent else 0,
+                1 if budget_consumed else 0,
+                latency_ms,
+                finished_at.isoformat(),
+                attempt_id,
+            ),
+        )
+
+    def commit_success(
+        self,
+        attempt_id: str,
+        *,
+        response: ModelActionResponse,
+        cursor: RoleCursor,
+        message_id: str | None,
+        created_at: datetime,
+        finished_at: datetime,
+        requested_priority: bool,
+    ) -> None:
+        """一次成功行动的所有事实同事务提交；SPEAK 与 PASS 使用相同边界。"""
+        draft = response.draft
+        if not response.ok or draft is None:
+            raise ValueError("成功提交需要有效的行动结果")
+        if (draft.action is ActionType.SPEAK) != (message_id is not None):
+            raise ValueError("SPEAK 必须有消息 ID，PASS 不得有消息 ID")
+
+        with self._db.transaction() as conn:
+            turn = conn.execute(
+                "SELECT status, scene_id, actor_id FROM scene_turns WHERE attempt_id = ?",
+                (attempt_id,),
+            ).fetchone()
+            if turn is None or turn["status"] != PENDING_TURN_STATUS:
+                raise ValueError("行动不存在或已完成，不能重复提交")
+            if (turn["scene_id"], turn["actor_id"]) != (cursor.scene_id, cursor.agent_id):
+                raise ValueError("行动与角色游标不匹配")
+
+            if draft.action is ActionType.SPEAK:
+                self._insert_message(
+                    conn,
+                    Message(
+                        message_id=message_id,
+                        scene_id=cursor.scene_id,
+                        seq=self._next_seq(conn, cursor.scene_id),
+                        actor_id=cursor.agent_id,
+                        text=draft.text,
+                        reply_to_message_id=draft.reply_to_message_id,
+                        requested_speaker_id=draft.requested_speaker_id,
+                        created_at=created_at,
+                    ),
+                )
+            self._finish_turn(
+                conn, attempt_id,
+                status=TurnStatus.SUCCEEDED,
+                finished_at=finished_at,
+                action=draft.action.value,
+                text=draft.text,
+                reply_to_message_id=draft.reply_to_message_id,
+                requested_speaker_id=draft.requested_speaker_id,
+                message_id=message_id,
+                requested_model=response.requested_model,
+                returned_model=response.returned_model,
+                provider_request_id=response.provider_request_id,
+                usage=response.usage,
+                sent=response.sent,
+                latency_ms=response.latency_ms,
+            )
+            # 兼容已有 RoleCursor 契约中的旧字段；调度不再读取角色个人计数。
+            self._upsert_cursor(conn, cursor.model_copy(update={"consecutive_requested_priority": 0}))
+            conn.execute(
+                "INSERT INTO scene_scheduler_state (scene_id, consecutive_requested_priority)"
+                " VALUES (?, ?) ON CONFLICT (scene_id) DO UPDATE SET"
+                " consecutive_requested_priority = CASE WHEN ? THEN"
+                " MIN(scene_scheduler_state.consecutive_requested_priority + 1, 2) ELSE 0 END",
+                (cursor.scene_id, int(requested_priority), int(requested_priority)),
+            )
+
+    def requested_priority_streak(self, scene_id: str) -> int:
+        """场景连续成功点名次数；普通轮转成功后清零，重启后仍可读取。"""
+        with self._db.connection() as conn:
+            row = conn.execute(
+                "SELECT consecutive_requested_priority FROM scene_scheduler_state WHERE scene_id = ?",
+                (scene_id,),
+            ).fetchone()
+        return int(row["consecutive_requested_priority"]) if row is not None else 0
 
     def list_turns(self, scene_id: str) -> list[dict]:
         with self._db.connection() as conn:
@@ -341,18 +474,21 @@ class RuntimeRepository:
         return int(row["total"])
 
     def refund_budget(self, attempt_id: str, scene_id: str) -> None:
-        """未派发的调用不占用预算（PRD 5.3）：标记行动行并回退计数器。"""
-
+        """未派发的调用不占用预算（PRD 5.3）。"""
         with self._db.transaction() as conn:
-            conn.execute(
-                "UPDATE scene_turns SET budget_consumed = 0 WHERE attempt_id = ?",
-                (attempt_id,),
-            )
-            conn.execute(
-                "UPDATE scene_budget_usage SET role_requests_used ="
-                " MAX(role_requests_used - 1, 0) WHERE scene_id = ?",
-                (scene_id,),
-            )
+            self._refund_budget(conn, attempt_id, scene_id)
+
+    @staticmethod
+    def _refund_budget(conn: sqlite3.Connection, attempt_id: str, scene_id: str) -> None:
+        conn.execute(
+            "UPDATE scene_turns SET budget_consumed = 0 WHERE attempt_id = ?",
+            (attempt_id,),
+        )
+        conn.execute(
+            "UPDATE scene_budget_usage SET role_requests_used ="
+            " MAX(role_requests_used - 1, 0) WHERE scene_id = ?",
+            (scene_id,),
+        )
 
     def mark_pending_turns_unknown(self) -> list[str]:
         """进程重启：把残留 `PENDING` 标记 `UNKNOWN`，返回受影响场景。
@@ -382,27 +518,31 @@ class RuntimeRepository:
 
     def upsert_cursor(self, cursor: RoleCursor) -> None:
         with self._db.transaction() as conn:
-            conn.execute(
-                "INSERT INTO role_cursors (scene_id, agent_id, processed_seq,"
-                " startup_opportunity_consumed, last_action_at, last_action_status,"
-                " consecutive_requested_priority)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?)"
-                " ON CONFLICT (scene_id, agent_id) DO UPDATE SET"
-                " processed_seq = excluded.processed_seq,"
-                " startup_opportunity_consumed = excluded.startup_opportunity_consumed,"
-                " last_action_at = excluded.last_action_at,"
-                " last_action_status = excluded.last_action_status,"
-                " consecutive_requested_priority = excluded.consecutive_requested_priority",
-                (
-                    cursor.scene_id,
-                    cursor.agent_id,
-                    cursor.processed_seq,
-                    1 if cursor.startup_opportunity_consumed else 0,
-                    cursor.last_action_at.isoformat() if cursor.last_action_at else None,
-                    cursor.last_action_status.value if cursor.last_action_status else None,
-                    cursor.consecutive_requested_priority,
-                ),
-            )
+            self._upsert_cursor(conn, cursor)
+
+    @staticmethod
+    def _upsert_cursor(conn: sqlite3.Connection, cursor: RoleCursor) -> None:
+        conn.execute(
+            "INSERT INTO role_cursors (scene_id, agent_id, processed_seq,"
+            " startup_opportunity_consumed, last_action_at, last_action_status,"
+            " consecutive_requested_priority)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?)"
+            " ON CONFLICT (scene_id, agent_id) DO UPDATE SET"
+            " processed_seq = excluded.processed_seq,"
+            " startup_opportunity_consumed = excluded.startup_opportunity_consumed,"
+            " last_action_at = excluded.last_action_at,"
+            " last_action_status = excluded.last_action_status,"
+            " consecutive_requested_priority = excluded.consecutive_requested_priority",
+            (
+                cursor.scene_id,
+                cursor.agent_id,
+                cursor.processed_seq,
+                1 if cursor.startup_opportunity_consumed else 0,
+                cursor.last_action_at.isoformat() if cursor.last_action_at else None,
+                cursor.last_action_status.value if cursor.last_action_status else None,
+                cursor.consecutive_requested_priority,
+            ),
+        )
 
     def list_cursors(self, scene_id: str) -> list[RoleCursor]:
         with self._db.connection() as conn:
@@ -473,14 +613,22 @@ class RuntimeRepository:
 
     def bump_budget(self, scene_id: str, *, role_requests: int = 0, analysis_requests: int = 0) -> None:
         with self._db.transaction() as conn:
-            conn.execute(
-                "INSERT INTO scene_budget_usage (scene_id, role_requests_used,"
-                " analysis_requests_used) VALUES (?, ?, ?)"
-                " ON CONFLICT (scene_id) DO UPDATE SET"
-                " role_requests_used = role_requests_used + excluded.role_requests_used,"
-                " analysis_requests_used = analysis_requests_used + excluded.analysis_requests_used",
-                (scene_id, role_requests, analysis_requests),
+            self._bump_budget(
+                conn, scene_id, role_requests=role_requests, analysis_requests=analysis_requests
             )
+
+    @staticmethod
+    def _bump_budget(
+        conn: sqlite3.Connection, scene_id: str, *, role_requests: int = 0, analysis_requests: int = 0
+    ) -> None:
+        conn.execute(
+            "INSERT INTO scene_budget_usage (scene_id, role_requests_used,"
+            " analysis_requests_used) VALUES (?, ?, ?)"
+            " ON CONFLICT (scene_id) DO UPDATE SET"
+            " role_requests_used = role_requests_used + excluded.role_requests_used,"
+            " analysis_requests_used = analysis_requests_used + excluded.analysis_requests_used",
+            (scene_id, role_requests, analysis_requests),
+        )
 
     # --- 时间线 ---
 

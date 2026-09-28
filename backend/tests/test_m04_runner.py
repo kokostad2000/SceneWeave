@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -23,19 +24,23 @@ from role_theater.contracts import (
     EventStatus,
     EventSubmission,
     EventVisibility,
+    Message,
     ModelFailure,
     ModelFailureKind,
     ModelParams,
     PauseReason,
     RoleCursor,
     RunState,
+    SchedulerReason,
     TurnStatus,
 )
 from role_theater.domain import AgentSpec, SceneService, TemplateService
 from role_theater.ports import DeepSeekModelClient, MockModelPort
 from role_theater.runtime import SceneRunner
+from role_theater.scheduling import Scheduler
 from role_theater.storage import Database, RuntimeRepository, SceneRepository, TemplateRepository
 from role_theater.storage.runtime_repo import PENDING_TURN_STATUS
+from role_theater.storage import migrator
 
 CLOCK = datetime(2026, 9, 26, 20, 0, tzinfo=UTC)
 
@@ -547,7 +552,6 @@ async def test_restart_marks_pending_unknown_and_pauses_without_replay(
         prompt_template_id="role_action@m02",
         created_at=CLOCK,
     )
-    env.runtime.bump_budget(env.scene_id, role_requests=1)
     env.runtime.set_scene_state(env.scene_id, status=RunState.RUNNING, started_at=CLOCK)
 
     recovered = env.runner.recover_after_restart()
@@ -741,3 +745,283 @@ async def test_reply_reference_taken_from_the_prompt_is_committed(
     assert messages[0].message_id in transport.prompts[1]
     # 结论：模型照提示词写出的引用真的落盘了。
     assert messages[1].reply_to_message_id == messages[0].message_id
+
+
+# --- 运行一致性修复：跨模块回归（2026-09-28） ---------------------------------
+
+
+@pytest.mark.parametrize("draft", [speak("暂停前的一句话。"), ActionDraft(action=ActionType.PASS)])
+async def test_step_pause_during_model_wait_finishes_paused(
+    database: Database, draft: ActionDraft
+) -> None:
+    port = GatedModelPort(draft)
+    env = build_env(database, port=port)
+    step = asyncio.create_task(
+        env.runner.run_command(env.scene_id, request_id="step", command=ControlCommandType.STEP)
+    )
+    await asyncio.wait_for(port.started.wait(), timeout=5)
+    pause = await env.runner.run_command(
+        env.scene_id, request_id="pause", command=ControlCommandType.PAUSE
+    )
+    assert pause.run_state is RunState.PAUSING
+    port.release.set()
+    ack = await asyncio.wait_for(step, timeout=5)
+    assert ack.run_state is RunState.PAUSED
+    scene = env.scene_repo.get_scene(env.scene_id)
+    assert scene.status is RunState.PAUSED
+    assert scene.pause_reason is PauseReason.MANUAL
+    assert not env.runner.is_busy(env.scene_id)
+    assert env.runner.call_count(env.scene_id) == 1
+    assert env.runtime.list_turns(env.scene_id)[0]["status"] == TurnStatus.SUCCEEDED.value
+
+
+class TracingScheduler(Scheduler):
+    def __init__(self) -> None:
+        super().__init__()
+        self.decisions = []
+
+    def select(self, state):
+        outcome = super().select(state)
+        self.decisions.append(outcome)
+        return outcome
+
+
+@pytest.mark.parametrize("third_actor,normal_actor", [(0, 2), (2, 0)])
+async def test_runner_caps_requested_priority_across_roles_and_resets_after_rotation(
+    database: Database, third_actor: int, normal_actor: int
+) -> None:
+    env = build_env(database)
+    a, b, _ = env.agent_ids
+    env.runner._model = MockModelPort(script=[
+        speak("第一句。", requested_speaker_id=b),
+        speak("第二句。", requested_speaker_id=env.agent_ids[third_actor]),
+        speak("第三句。", requested_speaker_id=b),
+        speak("轮转后重新点名。", requested_speaker_id=b),
+        speak("重新获得点名机会。"),
+    ])
+    scheduler = TracingScheduler()
+    env.runner._scheduler = scheduler
+    for index in range(5):
+        await env.runner.run_command(
+            env.scene_id, request_id=f"step-{index}", command=ControlCommandType.STEP
+        )
+    decisions = scheduler.decisions
+    assert [x.actor_id for x in decisions] == [a, b, env.agent_ids[third_actor], env.agent_ids[normal_actor], b]
+    assert [x.reason for x in decisions[1:3]] == [SchedulerReason.REQUESTED_SPEAKER_PRIORITY] * 2
+    assert decisions[3].reason is not SchedulerReason.REQUESTED_SPEAKER_PRIORITY
+    assert decisions[4].reason is SchedulerReason.REQUESTED_SPEAKER_PRIORITY
+
+
+async def test_pending_and_budget_reservation_roll_back_together(database: Database) -> None:
+    env = build_env(database, script=[speak("不得派发。")])
+    with database.transaction() as conn:
+        conn.execute("CREATE TRIGGER fail_budget BEFORE INSERT ON scene_budget_usage "
+                     "BEGIN SELECT RAISE(ABORT, 'budget fault'); END")
+    with pytest.raises(sqlite3.IntegrityError, match="budget fault"):
+        await env.runner.run_command(env.scene_id, request_id="step", command=ControlCommandType.STEP)
+    assert env.runtime.list_turns(env.scene_id) == []
+    assert env.runtime.budget_used(env.scene_id)["role_requests_used"] == 0
+    assert env.runner.call_count(env.scene_id) == 0
+    assert not env.runner.is_busy(env.scene_id)
+
+
+@pytest.mark.parametrize("stage", ["turn", "cursor", "scheduler"])
+async def test_success_commit_failure_exposes_no_partial_action(
+    database: Database, stage: str
+) -> None:
+    env = build_env(database, script=[speak("必须整体提交。")])
+    target = {
+        "turn": "BEFORE UPDATE ON scene_turns WHEN NEW.status = 'SUCCEEDED'",
+        "cursor": "BEFORE INSERT ON role_cursors",
+        "scheduler": "BEFORE INSERT ON scene_scheduler_state",
+    }[stage]
+    with database.transaction() as conn:
+        conn.execute(f"CREATE TRIGGER fail_success {target} "
+                     "BEGIN SELECT RAISE(ABORT, 'success fault'); END")
+    with pytest.raises(sqlite3.IntegrityError, match="success fault"):
+        await env.runner.run_command(env.scene_id, request_id="step", command=ControlCommandType.STEP)
+    assert env.runtime.list_messages(env.scene_id) == []
+    assert env.runtime.last_seq(env.scene_id) == 0
+    assert env.runtime.get_cursor(env.scene_id, env.agent_ids[0]) is None
+    assert env.runtime.list_turns(env.scene_id)[0]["status"] == PENDING_TURN_STATUS
+    assert env.runtime.budget_used(env.scene_id)["role_requests_used"] == 1
+    assert env.runtime.requested_priority_streak(env.scene_id) == 0
+    assert env.runner.recover_after_restart() == [env.scene_id]
+    assert env.runtime.list_turns(env.scene_id)[0]["status"] == TurnStatus.UNKNOWN.value
+    assert env.runtime.list_messages(env.scene_id) == []
+
+
+async def test_scheduler_update_failure_rolls_back_pass_and_preserves_prior_action(
+    database: Database,
+) -> None:
+    env = build_env(database)
+    env.runner._model = MockModelPort(script=[
+        speak("请第二位回应。", requested_speaker_id=env.agent_ids[1]),
+        ActionDraft(action=ActionType.PASS),
+    ])
+    await env.runner.run_command(env.scene_id, request_id="first", command=ControlCommandType.STEP)
+    original = env.runtime.list_messages(env.scene_id)
+    with database.transaction() as conn:
+        conn.execute("CREATE TRIGGER fail_scheduler BEFORE UPDATE ON scene_scheduler_state "
+                     "BEGIN SELECT RAISE(ABORT, 'scheduler fault'); END")
+    with pytest.raises(sqlite3.IntegrityError, match="scheduler fault"):
+        await env.runner.run_command(env.scene_id, request_id="second", command=ControlCommandType.STEP)
+    assert env.runtime.list_messages(env.scene_id) == original
+    assert sorted(x["status"] for x in env.runtime.list_turns(env.scene_id)) == ["PENDING", "SUCCEEDED"]
+    assert env.runtime.get_cursor(env.scene_id, env.agent_ids[1]) is None
+    assert env.runtime.requested_priority_streak(env.scene_id) == 0
+    assert env.runtime.budget_used(env.scene_id)["role_requests_used"] == 2
+
+
+async def test_requested_priority_streak_survives_runner_restart(database: Database) -> None:
+    env = build_env(database)
+    a, b, c = env.agent_ids
+    port = MockModelPort(script=[
+        speak("A 点 B。", requested_speaker_id=b),
+        speak("B 点 A。", requested_speaker_id=a),
+        speak("A 再点 B。", requested_speaker_id=b),
+        speak("C 轮转后点 B。", requested_speaker_id=b),
+        speak("B 回应。"),
+    ])
+    env.runner._model = port
+    for i in range(3):
+        await env.runner.run_command(env.scene_id, request_id=f"first-{i}", command=ControlCommandType.STEP)
+    assert env.runtime.requested_priority_streak(env.scene_id) == 2
+    reopened = Database(database.path)
+    runtime = RuntimeRepository(reopened)
+    trace = TracingScheduler()
+    restarted = SceneRunner(
+        database=reopened, scenes=SceneRepository(reopened), runtime=runtime,
+        model_port=port, scheduler=trace, clock=lambda: CLOCK, id_factory=Counter("restart"),
+    )
+    assert restarted.recover_after_restart() == []
+    assert runtime.requested_priority_streak(env.scene_id) == 2
+    await restarted.run_command(env.scene_id, request_id="after-restart", command=ControlCommandType.STEP)
+    assert trace.decisions[0].actor_id == c
+    assert trace.decisions[0].reason is not SchedulerReason.REQUESTED_SPEAKER_PRIORITY
+    assert runtime.requested_priority_streak(env.scene_id) == 0
+    await restarted.run_command(env.scene_id, request_id="after-rotation", command=ControlCommandType.STEP)
+    assert trace.decisions[1].actor_id == b
+    assert trace.decisions[1].reason is SchedulerReason.REQUESTED_SPEAKER_PRIORITY
+    assert runtime.requested_priority_streak(env.scene_id) == 1
+
+
+async def test_pass_counts_priority_and_normal_pass_resets_streak(database: Database) -> None:
+    env = build_env(database)
+    env.runner._model = MockModelPort(script=[
+        speak("点名。", requested_speaker_id=env.agent_ids[1]),
+        ActionDraft(action=ActionType.PASS), ActionDraft(action=ActionType.PASS),
+    ])
+    for index, expected in enumerate([0, 1, 0]):
+        await env.runner.run_command(env.scene_id, request_id=f"step-{index}", command=ControlCommandType.STEP)
+        assert env.runtime.requested_priority_streak(env.scene_id) == expected
+    assert len(env.runtime.list_messages(env.scene_id)) == 1
+
+
+class GatedFailureModelPort(GatedModelPort):
+    async def generate_action(self, request):
+        response = await super().generate_action(request)
+        return response.model_copy(update={
+            "ok": False, "draft": None,
+            "failure": ModelFailure(kind=ModelFailureKind.TIMEOUT, detail="可控超时"),
+        })
+
+
+@pytest.mark.parametrize("failure,stop", [(True, False), (False, True), (True, True)])
+async def test_step_pause_preserves_failure_reason_and_stop_wins(
+    database: Database, failure: bool, stop: bool
+) -> None:
+    port_type = GatedFailureModelPort if failure else GatedModelPort
+    port = port_type(speak("当前调用。"))
+    env = build_env(database, port=port)
+    step = asyncio.create_task(
+        env.runner.run_command(env.scene_id, request_id="step", command=ControlCommandType.STEP)
+    )
+    await asyncio.wait_for(port.started.wait(), timeout=5)
+    await env.runner.run_command(env.scene_id, request_id="pause", command=ControlCommandType.PAUSE)
+    if stop:
+        await env.runner.run_command(env.scene_id, request_id="stop", command=ControlCommandType.STOP)
+    port.release.set()
+    ack = await asyncio.wait_for(step, timeout=5)
+    expected = RunState.ENDED if stop else RunState.PAUSED
+    assert ack.run_state is expected
+    scene = env.scene_repo.get_scene(env.scene_id)
+    assert scene.status is expected
+    assert scene.pause_reason is (None if stop else PauseReason.PROVIDER_ERROR)
+    assert env.runner.call_count(env.scene_id) == 1
+    assert not env.runner.is_busy(env.scene_id)
+
+
+async def test_model_wait_does_not_hold_sqlite_write_transaction(database: Database) -> None:
+    port = GatedModelPort(speak("等待期间。"))
+    env = build_env(database, port=port)
+    step = asyncio.create_task(
+        env.runner.run_command(env.scene_id, request_id="step", command=ControlCommandType.STEP)
+    )
+    await asyncio.wait_for(port.started.wait(), timeout=5)
+    try:
+        with database.connection() as conn:
+            conn.execute("PRAGMA busy_timeout = 0")
+            conn.execute("BEGIN IMMEDIATE")
+            conn.execute("UPDATE scenes SET title = title WHERE scene_id = ?", (env.scene_id,))
+            conn.execute("COMMIT")
+        assert env.runtime.budget_used(env.scene_id)["role_requests_used"] == 1
+        assert env.runtime.list_turns(env.scene_id)[0]["status"] == PENDING_TURN_STATUS
+    finally:
+        port.release.set()
+        await asyncio.wait_for(step, timeout=5)
+
+
+def test_old_database_upgrade_preserves_records_and_resets_unreliable_role_counts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    old = Database(tmp_path / "old.db")
+    all_migrations = migrator.discover_migrations()
+    with monkeypatch.context() as patch:
+        patch.setattr(migrator, "discover_migrations", lambda: all_migrations[:3])
+        assert old.migrate() == [1, 2, 3]
+    env = build_env(old)
+    env.runtime.insert_turn(
+        action_id="old-action", turn_id="old-turn", attempt_id="old-attempt",
+        scene_id=env.scene_id, actor_id=env.agent_ids[0], input_cursor_seq=0,
+        prompt_template_id="role_action@m02.1", created_at=CLOCK,
+    )
+    env.runtime.insert_message(Message(
+        message_id="old-message", scene_id=env.scene_id, seq=env.runtime.next_seq(env.scene_id),
+        actor_id=env.agent_ids[0], text="升级前的消息。", created_at=CLOCK,
+    ))
+    env.runtime.finish_turn(
+        "old-attempt", status=TurnStatus.SUCCEEDED, finished_at=CLOCK,
+        action=ActionType.SPEAK.value, text="升级前的消息。", message_id="old-message",
+    )
+    env.runtime.upsert_cursor(RoleCursor(
+        scene_id=env.scene_id, agent_id=env.agent_ids[0], processed_seq=1,
+        startup_opportunity_consumed=True, consecutive_requested_priority=2,
+    ))
+    messages, turns, budget = (
+        env.runtime.list_messages(env.scene_id), env.runtime.list_turns(env.scene_id),
+        env.runtime.budget_used(env.scene_id),
+    )
+    assert old.migrate() == [4]
+    assert old.migrate() == []
+    assert env.runtime.list_messages(env.scene_id) == messages
+    assert env.runtime.list_turns(env.scene_id) == turns
+    assert env.runtime.budget_used(env.scene_id) == budget
+    assert env.runtime.requested_priority_streak(env.scene_id) == 0
+    cursor = env.runtime.get_cursor(env.scene_id, env.agent_ids[0])
+    assert cursor.processed_seq == 1
+    assert cursor.startup_opportunity_consumed
+    assert cursor.consecutive_requested_priority == 0
+
+
+async def test_unsent_failure_and_budget_refund_roll_back_together(database: Database) -> None:
+    env = build_env(database, script=[ModelFailure(kind=ModelFailureKind.MISSING_CONFIG, detail="未派发")])
+    with database.transaction() as conn:
+        conn.execute("CREATE TRIGGER fail_finish BEFORE UPDATE ON scene_turns WHEN NEW.status = 'FAILED' "
+                     "BEGIN SELECT RAISE(ABORT, 'finish fault'); END")
+    with pytest.raises(sqlite3.IntegrityError, match="finish fault"):
+        await env.runner.run_command(env.scene_id, request_id="step", command=ControlCommandType.STEP)
+    turn = env.runtime.list_turns(env.scene_id)[0]
+    assert turn["status"] == PENDING_TURN_STATUS
+    assert turn["budget_consumed"] == 1
+    assert env.runtime.budget_used(env.scene_id)["role_requests_used"] == 1

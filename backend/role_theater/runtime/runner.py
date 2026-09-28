@@ -4,7 +4,7 @@
 
 1. **每场同一时刻只有一个在途角色请求**（由 ``_in_flight`` + 每场景锁保证）；
 2. **先落盘、再通知**：数据库是事实来源，SSE 只按 ``seq`` 补发已提交数据；
-3. **模型网络等待期间不持有写事务**：``PENDING`` 写入与结果写入是各自的短事务；
+3. **模型网络等待期间不持有写事务**：派发预留与完整行动结果分别原子提交；
 4. **只有成功行动推进已处理位置**，失败不推进（PRD 5.1）；
 5. **发送即占用预算**，失败／超时不退款；未派发的调用不占用（PRD 5.3）；
 6. **结束请求后拒绝新事件**，但已接受事件仍在调用边界顺序落盘（PRD 4.3）。
@@ -26,7 +26,6 @@ from ..contracts import (
     Event,
     EventStatus,
     EventSubmission,
-    Message,
     ModelActionRequest,
     ModelFailureKind,
     ModelParams,
@@ -34,6 +33,7 @@ from ..contracts import (
     ReferenceScope,
     RoleCursor,
     RunState,
+    SchedulerReason,
     TurnStatus,
 )
 from ..context import ContextBuilder, ContextLimitExceeded, SceneSnapshot, agent_profile_views
@@ -513,6 +513,14 @@ class SceneRunner:
             if self._stop_requested.get(scene_id):
                 self._finalize_stop(scene_id, self._clock())
                 result = replace(result, run_state=RunState.ENDED, pause_reason=None)
+            elif self._pause_requested.get(scene_id) and result.run_state in (
+                RunState.RUNNING, RunState.PAUSING
+            ):
+                # STEP 没有后续自动循环，暂停也必须在同一个调用边界完成。
+                # 已因调用失败暂停时保留原原因；STOP 始终优先。
+                self._pause(scene_id, PauseReason.MANUAL)
+                result = replace(result, run_state=RunState.PAUSED, pause_reason=PauseReason.MANUAL)
+            self._pause_requested[scene_id] = False
             return result
 
     async def _execute_locked(self, scene_id: str, *, allow_pause: bool) -> StepResult:
@@ -529,9 +537,7 @@ class SceneRunner:
 
         snapshot = self.snapshot(scene_id)
         cursors = tuple(self._runtime.list_cursors(scene_id))
-        priority_used = max(
-            (cursor.consecutive_requested_priority for cursor in cursors), default=0
-        )
+        priority_used = self._runtime.requested_priority_streak(scene_id)
         state = SchedulerState(
             scene=snapshot, cursors=cursors, consecutive_requested_priority=priority_used
         )
@@ -577,7 +583,6 @@ class SceneRunner:
             prompt_template_id=context.prompt_template_id,
             created_at=now,
         )
-        self._runtime.bump_budget(scene_id, role_requests=1)
         self._call_counts[scene_id] = self._call_counts.get(scene_id, 0) + 1
 
         # 引用范围：本场已提交且该角色可见的公开发言 + 本场其他有效角色（PRD 4.2）。
@@ -623,10 +628,6 @@ class SceneRunner:
         failure = response.failure
         kind = failure.kind if failure is not None else ModelFailureKind.PROVIDER_ERROR
         not_dispatched = (not response.sent) and kind in NOT_DISPATCHED_KINDS
-        if not_dispatched:
-            # 没有产生模型请求 → 不占用预算（PRD 5.3）。
-            self._runtime.refund_budget(attempt_id, scene_id)
-
         status = TurnStatus.UNKNOWN if kind is ModelFailureKind.UNKNOWN_REQUEST else TurnStatus.FAILED
         self._runtime.finish_turn(
             attempt_id,
@@ -673,62 +674,24 @@ class SceneRunner:
         now: datetime,
     ) -> StepResult:
         draft = response.draft
-        message_id: str | None = None
-
-        if draft.action is ActionType.SPEAK:
-            # 先分配 seq 并落盘消息，再更新行动行（一次短事务一次）。
-            seq = self._runtime.next_seq(scene_id)
-            message = Message(
-                message_id=f"msg_{self._new_id()}",
-                scene_id=scene_id,
-                seq=seq,
-                actor_id=actor_id,
-                text=draft.text,
-                reply_to_message_id=draft.reply_to_message_id,
-                requested_speaker_id=draft.requested_speaker_id,
-                created_at=now,
-            )
-            self._runtime.insert_message(message)
-            message_id = message.message_id
-
-        self._runtime.finish_turn(
-            attempt_id,
-            status=TurnStatus.SUCCEEDED,
-            finished_at=self._clock(),
-            action=draft.action.value,
-            text=draft.text,
-            reply_to_message_id=draft.reply_to_message_id,
-            requested_speaker_id=draft.requested_speaker_id,
-            message_id=message_id,
-            requested_model=response.requested_model,
-            returned_model=response.returned_model,
-            provider_request_id=response.provider_request_id,
-            usage=response.usage,
-            sent=response.sent,
-            latency_ms=response.latency_ms,
-        )
-
         # 只有成功的 SPEAK／PASS 才推进已处理位置，且**只推进到输入快照**，
         # 避免把提交之后出现的新事件误标为已处理（PRD 5.1）。
-        previous = self._runtime.get_cursor(scene_id, actor_id)
-        priority = previous.consecutive_requested_priority if previous else 0
-        from ..contracts import SchedulerReason
-
-        if outcome.reason is SchedulerReason.REQUESTED_SPEAKER_PRIORITY:
-            priority = min(priority + 1, 2)
-        else:
-            priority = 0
-
-        self._runtime.upsert_cursor(
-            RoleCursor(
+        message_id = f"msg_{self._new_id()}" if draft.action is ActionType.SPEAK else None
+        self._runtime.commit_success(
+            attempt_id,
+            response=response,
+            message_id=message_id,
+            created_at=now,
+            finished_at=self._clock(),
+            requested_priority=outcome.reason is SchedulerReason.REQUESTED_SPEAKER_PRIORITY,
+            cursor=RoleCursor(
                 scene_id=scene_id,
                 agent_id=actor_id,
                 processed_seq=outcome.based_on_seq,
                 startup_opportunity_consumed=True,
                 last_action_at=now,
                 last_action_status=TurnStatus.SUCCEEDED,
-                consecutive_requested_priority=priority,
-            )
+            ),
         )
 
         # 提交后再处理待生效事件并通知订阅者（先记录、后推送）。
