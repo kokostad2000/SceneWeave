@@ -85,7 +85,7 @@ def test_full_deterministic_scenario(make_client) -> None:
     with make_client(
         model_port=port, analysis_enabled=True, injected_analysis_port=analysis_port
     ) as client:
-        detail = client.post("/api/scenes/preset", json={}).json()
+        detail = client.post("/api/scenes/preset", json={"chat_policy_version": 1}).json()
         scene_id = detail["scene"]["scene_id"]
         agents = {agent["name"]: agent["agent_id"] for agent in detail["agents"]}
         assert list(agents) == ["安然", "许川", "陈禾"]
@@ -248,7 +248,7 @@ def test_paused_scene_can_be_resumed_and_ended(make_client) -> None:
     """暂停／继续／结束在调用边界生效（硬验收：暂停／结束）。"""
 
     with make_client([speak("第一句。"), speak("第二句。"), speak("第三句。")]) as client:
-        scene_id = client.post("/api/scenes/preset", json={}).json()["scene"]["scene_id"]
+        scene_id = client.post("/api/scenes/preset", json={"chat_policy_version": 1}).json()["scene"]["scene_id"]
 
         assert (
             client.post(

@@ -24,6 +24,32 @@ from role_theater.main import create_app
 PLACEHOLDER = "placeholder-dotenv-value"
 
 
+@pytest.fixture(autouse=True)
+def isolate_sceneweave_environment(monkeypatch) -> None:
+    """每个临时配置用例自行设置输入，避免继承开发机环境。"""
+    for name in tuple(os.environ):
+        if name.upper().startswith("SCENEWEAVE_"):
+            monkeypatch.delenv(name)
+
+
+@pytest.mark.parametrize("value", [None, "", "placeholder-matrix-value"])
+def test_missing_empty_and_placeholder_configuration(value, monkeypatch, tmp_path) -> None:
+    if value is not None:
+        monkeypatch.setenv(MODEL_API_KEY_ENV, value)
+    settings = Settings(_env_file=None,
+        database_url=f"sqlite:///{tmp_path / 'matrix.db'}")
+    assert settings.model_configured is bool(value)
+    assert settings.model_credential_source == (
+        CREDENTIAL_SOURCE_ENVIRONMENT if value else CREDENTIAL_SOURCE_NONE)
+    assert settings.resolved_provider == ("deepseek" if value else "mock")
+    assert Settings(_env_file=None, model_force_mock=True).resolved_provider == "mock"
+    with TestClient(create_app(settings)) as client:
+        response = client.get("/api/health")
+    assert response.status_code == 200
+    assert response.json()["model_configured"] is bool(value)
+    assert "placeholder-matrix-value" not in response.text
+
+
 def _write_env(path: Path, **values: str) -> Path:
     lines = [f"{key}={value}" for key, value in values.items()]
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
