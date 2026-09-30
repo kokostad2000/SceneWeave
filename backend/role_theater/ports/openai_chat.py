@@ -291,7 +291,8 @@ class OpenAICompatibleChatClient:
         content = message.get("content")
         content_text = content if isinstance(content, str) else None
 
-        outcome = parse_action_content(content_text, finish_reason=finish_reason, scope=scope)
+        outcome = parse_action_content(content_text, finish_reason=finish_reason, scope=scope,
+                                       chat_policy_version=request.chat_policy_version)
 
         if isinstance(outcome, ModelFailure):
             return ModelActionResponse(

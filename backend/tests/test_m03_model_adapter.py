@@ -41,7 +41,7 @@ def _request(
         prompt_template_id="role_action@m02",
         prompt=prompt,
         cursor_seq=3,
-        params=params or ModelParams(),
+        params=params or ModelParams(max_output_tokens=1024),
         references=references,
     )
 
@@ -424,7 +424,7 @@ async def test_context_limit_is_refused_before_sending() -> None:
         prompt_template_id="role_action@m02",
         prompt="字" * 40_000,
         cursor_seq=0,
-        params=ModelParams(),
+        params=ModelParams(max_output_tokens=1024),
         references=None,
     )
 
