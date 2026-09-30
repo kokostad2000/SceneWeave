@@ -15,7 +15,7 @@ def speak(text: str) -> ActionDraft:
 
 
 def make_preset_scene(client: TestClient) -> str:
-    response = client.post("/api/scenes/preset", json={})
+    response = client.post("/api/scenes/preset", json={"chat_policy_version": 1})
     assert response.status_code == 201, response.text
     return response.json()["scene"]["scene_id"]
 
@@ -285,7 +285,7 @@ def test_viewpoint_matches_the_caller_context_and_hides_other_private_data(
 
     assert viewpoint["agent_id"] == target["agent_id"]
     assert viewpoint["agent_name"] == target["name"]
-    assert viewpoint["prompt_template_id"] == "role_action@m02.1"
+    assert viewpoint["prompt_template_id"] == "role_action@simulation.p1.1"
     assert "朋友临时取消了聚会" in viewpoint["prompt"], "本人私有背景在内"
     assert "今天工作很累" not in viewpoint["prompt"], "他人私有背景不得出现"
     assert viewpoint["public_roster"] == ["安然", "许川", "陈禾"]
@@ -338,7 +338,7 @@ def test_summary_reports_actual_call_counts(api_client: TestClient) -> None:
 def test_budget_limit_from_scene_creation_is_respected(api_client: TestClient) -> None:
     templates = api_client.get("/api/templates").json()["templates"]
     if not templates:
-        api_client.post("/api/scenes/preset", json={})
+        api_client.post("/api/scenes/preset", json={"chat_policy_version": 1})
         templates = api_client.get("/api/templates").json()["templates"]
 
     created = api_client.post(

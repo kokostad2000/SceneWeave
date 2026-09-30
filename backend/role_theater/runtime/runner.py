@@ -18,6 +18,9 @@ from dataclasses import dataclass, replace
 from datetime import datetime
 from uuid import uuid4
 
+from ..contracts.enums import MessageVisibility
+from ..contracts.limits import LEGACY_OUTPUT_TOKENS, MAX_OUTPUT_TOKENS
+from ..ports.action_parser import validate_references
 from ..contracts import (
     MAX_PROMPT_CHARS,
     ActionType,
@@ -45,6 +48,7 @@ from .state_machine import assert_transition, can_transition
 
 #: `_ack` 构造响应时的占位 request_id；真正的值由 `_store_command` 填入。
 _PENDING_REQUEST_ID = "pending"
+_UNCONFIRMED_COMMAND = "命令已接收，结果尚未确认；请检查场景状态，重放不会再次执行"
 
 #: 未派发（不占用预算）的失败分类（PRD 5.3）。
 NOT_DISPATCHED_KINDS = frozenset(
@@ -154,6 +158,10 @@ class SceneRunner:
         return SceneSnapshot(
             scene_id=scene_id,
             background=scene.background,
+            mode=scene.mode,
+            mode_config=scene.mode_config,
+            configuration_version=scene.configuration_version,
+            chat_policy_version=scene.chat_policy_version,
             agents=agent_profile_views(agents),
             timeline=tuple(timeline),
         )
@@ -174,6 +182,9 @@ class SceneRunner:
         existing = self._runtime.get_command(request_id)
         if existing is not None:
             ack = CommandAck.model_validate_json(existing["response_json"])
+            if ack.detail == _UNCONFIRMED_COMMAND:
+                scene = self._require_scene(existing['scene_id'])
+                ack = ack.model_copy(update={"run_state": scene.status, "pause_reason": scene.pause_reason})
             return ack.model_copy(update={"deduplicated": True})
 
         scene = self._require_scene(scene_id)
@@ -193,6 +204,9 @@ class SceneRunner:
                 )
             return self._store_command(scene_id, request_id, command, ack, now)
 
+        # Persist before any dispatch/state change. A crash cannot turn a replay into a new request.
+        self._store_command(scene_id, request_id, command,
+                            self._ack(scene_id, command, accepted=True, detail=_UNCONFIRMED_COMMAND), now)
         if command is ControlCommandType.START:
             ack = await self._handle_start(scene_id, current, now)
         elif command is ControlCommandType.STEP:
@@ -204,7 +218,7 @@ class SceneRunner:
         else:  # STOP
             ack = await self._handle_stop(scene_id, current, now)
 
-        return self._store_command(scene_id, request_id, command, ack, now)
+        return self._store_command(scene_id, request_id, command, ack, now, complete=True)
 
     async def inject_event(
         self, scene_id: str, *, request_id: str, submission: EventSubmission
@@ -287,6 +301,12 @@ class SceneRunner:
         """进程重启恢复（PRD 5.4）：残留 `PENDING` → `UNKNOWN`，场景暂停。"""
 
         scene_ids = self._runtime.mark_pending_turns_unknown()
+        # A crash can occur after the action commit and before final state classification.
+        # Orphan active scenes have no task even when no request is still PENDING.
+        scene_ids = sorted(set(scene_ids) | {
+            scene.scene_id for scene in self._scenes.list_scenes()
+            if scene.status in (RunState.RUNNING, RunState.PAUSING, RunState.STOPPING)
+        })
         for scene_id in scene_ids:
             if self._scenes.get_scene(scene_id) is None:  # pragma: no cover - 级联删除后不会出现
                 continue
@@ -296,6 +316,18 @@ class SceneRunner:
         return scene_ids
 
     # --- 命令实现 ---
+
+    def _begin_running(self, scene_id: str, now: datetime) -> None:
+        # Every explicit recovery entry must include accepted events in the first new request.
+        self._activate_pending_events(scene_id)
+        scene = self._require_scene(scene_id)
+        reset_silence = scene.chat_policy_version == 2 and self._scheduler.collectively_silent(
+            SchedulerState(scene=self.snapshot(scene_id), cursors=tuple(self._runtime.list_cursors(scene_id)))
+        )
+        self._runtime.set_scene_state(
+            scene_id, status=RunState.RUNNING, started_at=now,
+            reset_silence=reset_silence,
+        )
 
     async def _handle_start(self, scene_id: str, current: RunState, now: datetime) -> CommandAck:
         if current in (RunState.RUNNING, RunState.PAUSING):
@@ -312,7 +344,7 @@ class SceneRunner:
         # 首次实际角色请求开始后锁定本场背景与人物设定（PRD 3.2）。
         self._scenes.lock_scene(scene_id, now)
         assert_transition(current, RunState.RUNNING)
-        self._runtime.set_scene_state(scene_id, status=RunState.RUNNING, started_at=now)
+        self._begin_running(scene_id, now)
         self._stop_requested[scene_id] = False
         self._pause_requested[scene_id] = False
         self._spawn_loop(scene_id)
@@ -338,7 +370,7 @@ class SceneRunner:
 
         now = self._clock()
         self._scenes.lock_scene(scene_id, now)
-        self._runtime.set_scene_state(scene_id, status=RunState.RUNNING, started_at=now)
+        self._begin_running(scene_id, now)
         result = await self._execute_one(scene_id, allow_pause=True)
 
         # 单步只执行一次角色请求，**完成后暂停**（PRD 5.2）；不保证产生发言。
@@ -415,12 +447,9 @@ class SceneRunner:
                 override_state=current,
             )
 
-        # 恢复边界：先处理尚未生效的已接受事件，再允许新的角色请求（PRD 5.4）。
-        self._activate_pending_events(scene_id)
-
         self._pause_requested[scene_id] = False
         self._stop_requested[scene_id] = False
-        self._runtime.set_scene_state(scene_id, status=RunState.RUNNING, started_at=now)
+        self._begin_running(scene_id, now)
         self._spawn_loop(scene_id)
         return self._ack(
             scene_id, ControlCommandType.RESUME, accepted=True, override_state=RunState.RUNNING
@@ -545,9 +574,10 @@ class SceneRunner:
 
         if outcome.actor_id is None:
             # 候选为空 → 暂停，原因“无新信息”，**不是**会话结束（PRD 5.1）。
-            self._pause(scene_id, PauseReason.NO_NEW_INFORMATION if allow_pause else PauseReason.MANUAL)
+            reason = outcome.pause_reason or PauseReason.NO_NEW_INFORMATION
+            self._pause(scene_id, reason if allow_pause else PauseReason.MANUAL)
             return self._result(
-                scene_id, RunState.PAUSED, PauseReason.NO_NEW_INFORMATION, used, actor_id=None
+                scene_id, RunState.PAUSED, reason, used, actor_id=None
             )
 
         actor_id = outcome.actor_id
@@ -572,6 +602,37 @@ class SceneRunner:
         turn_id = f"turn_{self._new_id()}"
         action_id = f"act_{self._new_id()}"
 
+        # 引用范围：本场已提交且该角色可见的公开发言 + 本场其他有效角色（PRD 4.2）。
+        # 同一批发言同时给出消息 ID 与序号别名：提示词用 ``[#序号]`` 展示发言，
+        # 模型回序号或回消息 ID 都必须落在允许范围内。
+        public = [(alias, item) for alias, item in enumerate(context.visible_items, 1)
+                  if item.message_id and item.message_visibility is MessageVisibility.PUBLIC]
+        received = [(alias, item) for alias, item in enumerate(context.visible_items, 1)
+                    if item.message_id and item.message_visibility is MessageVisibility.PRIVATE
+                    and item.recipient_id == actor_id]
+        references = ReferenceScope(
+            actor_id=actor_id,
+            chat_policy_version=scene.chat_policy_version,
+            allowed_message_ids=[item.message_id for _, item in public],
+            allowed_message_seqs={alias: item.message_id for alias, item in public},
+            received_private_messages={item.message_id: item.author_agent_id for _, item in received},
+            private_message_seqs={alias: item.message_id for alias, item in received},
+            allowed_speaker_ids=[a.agent_id for a in snapshot.ordered_agents if a.agent_id != actor_id],
+        )
+        request = ModelActionRequest(
+            scene_id=scene_id,
+            actor_id=actor_id,
+            chat_policy_version=scene.chat_policy_version,
+            prompt_template_id=context.prompt_template_id,
+            prompt=context.prompt,
+            cursor_seq=outcome.based_on_seq,
+            params=self._model_params.model_copy(update={
+                "max_output_tokens": min(self._model_params.max_output_tokens,
+                                         MAX_OUTPUT_TOKENS if scene.chat_policy_version == 2 else LEGACY_OUTPUT_TOKENS),
+            }),
+            references=references,
+        )
+
         # 派发前先写 PENDING：占用预算 + 标记在途 + 崩溃恢复依据（tasks/M04.md §3.7 I2）。
         self._runtime.insert_turn(
             action_id=action_id,
@@ -582,39 +643,17 @@ class SceneRunner:
             input_cursor_seq=outcome.based_on_seq,
             prompt_template_id=context.prompt_template_id,
             created_at=now,
+            request_snapshot_json=request.model_dump_json(),
         )
         self._call_counts[scene_id] = self._call_counts.get(scene_id, 0) + 1
 
-        # 引用范围：本场已提交且该角色可见的公开发言 + 本场其他有效角色（PRD 4.2）。
-        # 同一批发言同时给出消息 ID 与序号别名：提示词用 ``[#序号]`` 展示发言，
-        # 模型回序号或回消息 ID 都必须落在允许范围内。
-        visible_messages = [
-            message
-            for message in self._runtime.list_messages(scene_id)
-            if message.seq <= outcome.based_on_seq
-        ]
-        references = ReferenceScope(
-            actor_id=actor_id,
-            allowed_message_ids=[message.message_id for message in visible_messages],
-            allowed_message_seqs={
-                message.seq: message.message_id for message in visible_messages
-            },
-            allowed_speaker_ids=[
-                agent.agent_id for agent in snapshot.ordered_agents if agent.agent_id != actor_id
-            ],
-        )
-        request = ModelActionRequest(
-            scene_id=scene_id,
-            actor_id=actor_id,
-            prompt_template_id=context.prompt_template_id,
-            prompt=context.prompt,
-            cursor_seq=outcome.based_on_seq,
-            params=self._model_params,
-            references=references,
-        )
 
         response = await self._model.generate_action(request)
 
+        if response.ok and response.draft is not None:
+            reference_failure = validate_references(response.draft, references)
+            if reference_failure:
+                response = response.model_copy(update={"ok": False, "draft": None, "failure": reference_failure})
         if response.ok and response.draft is not None:
             return self._commit_success(
                 scene_id=scene_id,
@@ -676,7 +715,7 @@ class SceneRunner:
         draft = response.draft
         # 只有成功的 SPEAK／PASS 才推进已处理位置，且**只推进到输入快照**，
         # 避免把提交之后出现的新事件误标为已处理（PRD 5.1）。
-        message_id = f"msg_{self._new_id()}" if draft.action is ActionType.SPEAK else None
+        message_id = f"msg_{self._new_id()}" if draft.action in (ActionType.SPEAK, ActionType.PRIVATE) else None
         self._runtime.commit_success(
             attempt_id,
             response=response,
@@ -701,6 +740,16 @@ class SceneRunner:
         used = self._runtime.budget_used(scene_id)["role_requests_used"]
         scene = self._scenes.get_scene(scene_id)
         state = scene.status if scene is not None else RunState.RUNNING
+        pause_reason = None
+        if scene is not None and scene.chat_policy_version == 2 and state is RunState.RUNNING:
+            if used >= scene.budget.max_role_requests:
+                self._runtime.set_scene_state(scene_id, status=RunState.ENDED, ended_at=self._clock())
+                state = RunState.ENDED
+            elif self._scheduler.collectively_silent(SchedulerState(
+                scene=self.snapshot(scene_id), cursors=tuple(self._runtime.list_cursors(scene_id)),
+            )):
+                self._pause(scene_id, PauseReason.COLLECTIVE_SILENCE)
+                state, pause_reason = RunState.PAUSED, PauseReason.COLLECTIVE_SILENCE
         return StepResult(
             actor_id=actor_id,
             action=draft.action.value,
@@ -708,7 +757,7 @@ class SceneRunner:
             status=TurnStatus.SUCCEEDED,
             failure_kind=None,
             run_state=state,
-            pause_reason=None,
+            pause_reason=pause_reason,
             budget_used=used,
         )
 
@@ -803,6 +852,8 @@ class SceneRunner:
         command: ControlCommandType | None,
         ack: CommandAck,
         now: datetime,
+        *,
+        complete: bool = False,
     ) -> CommandAck:
         stored = ack.model_copy(update={"request_id": request_id})
         self._runtime.store_command(
@@ -811,6 +862,7 @@ class SceneRunner:
             command=command.value if command else "INJECT_EVENT",
             response_json=stored.model_dump_json(),
             created_at=now,
+            complete=complete,
         )
         return stored
 

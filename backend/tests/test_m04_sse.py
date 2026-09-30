@@ -18,7 +18,7 @@ def speak(text: str) -> ActionDraft:
 
 
 def make_scene(client: TestClient) -> str:
-    return client.post("/api/scenes/preset", json={}).json()["scene"]["scene_id"]
+    return client.post("/api/scenes/preset", json={"chat_policy_version": 1}).json()["scene"]["scene_id"]
 
 
 def read_sse(client: TestClient, scene_id: str, **params) -> list[dict]:
