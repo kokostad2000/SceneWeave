@@ -292,6 +292,9 @@ def test_timeline_item_cannot_carry_non_story_payload() -> None:
         "message_id",
         "reply_to_message_id",
         "requested_speaker_id",
+        "message_visibility",
+        "recipient_id",
+        "conversation_id",
     }
 
 
@@ -399,3 +402,19 @@ def test_agent_profile_views_preserve_identifiers() -> None:
 
 def test_timeline_kind_enum_is_exhaustive() -> None:
     assert {kind.value for kind in TimelineKind} == {"message", "event"}
+
+
+def test_pc_private_context_relay_and_local_aliases():
+    private = _message(1, "agt-an", "安然", "PRIVATE_UNIQUE", visibility="PRIVATE", recipient_id="agt-xu", conversation_id="conv-ab")
+    public = _message(2, "agt-xu", "许川", "转述说法")
+    scene = _scene((private, public))
+    for actor in ["agt-an", "agt-xu"]:
+        prompt = ContextBuilder().build(scene, actor).prompt
+        assert "PRIVATE_UNIQUE" in prompt and "私聊" in prompt
+    third = ContextBuilder().build(scene, "agt-ch")
+    assert "PRIVATE_UNIQUE" not in third.prompt and "msg-1" not in third.prompt and "conv-ab" not in third.prompt
+    assert "[#1 | msg-2]" in third.prompt and "[#2" not in third.prompt
+    assert [x.message_id for x in third.visible_items] == ["msg-2"]
+    assert newest_external_seq(_scene((private,)), "agt-an") == 0
+    assert newest_external_seq(_scene((private,)), "agt-xu") == 1
+    assert newest_external_seq(_scene((private,)), "agt-ch") == 0

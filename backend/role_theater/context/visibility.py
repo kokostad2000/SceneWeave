@@ -10,7 +10,9 @@
 from __future__ import annotations
 
 from ..contracts import EventVisibility
-from .models import SceneSnapshot, TimelineItem, TimelineKind
+from ..contracts.enums import MessageVisibility
+from .models import SceneSnapshot, TimelineItem, TimelineKind, VisibleContext, PublicRole
+from ..contracts.mode import resolve_mode_config
 
 
 def is_visible_to(item: TimelineItem, agent_id: str) -> bool:
@@ -18,7 +20,7 @@ def is_visible_to(item: TimelineItem, agent_id: str) -> bool:
 
     if item.kind is TimelineKind.MESSAGE:
         # 公开发言对全体可见；“回复谁”“希望谁接话”不改变公开范围（PRD 4.2）。
-        return True
+        return item.message_visibility is MessageVisibility.PUBLIC or agent_id in (item.author_agent_id, item.recipient_id)
     # 事件：ALL 全体可见，TARGETED 仅指定角色可见（PRD 4.3）。
     return item.visibility is EventVisibility.ALL or item.target_agent_id == agent_id
 
@@ -29,6 +31,20 @@ def visible_items(scene: SceneSnapshot, agent_id: str) -> tuple[TimelineItem, ..
     return tuple(
         item for item in sorted(scene.timeline, key=lambda entry: entry.seq)
         if is_visible_to(item, agent_id)
+    )
+
+
+def filter_context(scene: SceneSnapshot, agent_id: str) -> VisibleContext:
+    agent = scene.agent(agent_id)
+    return VisibleContext(
+        actor_id=agent.agent_id, actor_name=agent.name, mode=scene.mode,
+        configuration_version=scene.configuration_version,
+        chat_policy_version=scene.chat_policy_version,
+        background=scene.background,
+        mode_config=resolve_mode_config(scene.mode, scene.mode_config, scene.background),
+        roster=tuple(PublicRole(a.agent_id, a.name, a.snapshot.public_profile) for a in scene.ordered_agents),
+        own_snapshot=agent.snapshot, own_discussion=agent.discussion_config,
+        items=visible_items(scene, agent_id), cutoff_seq=cutoff_seq(scene, agent_id),
     )
 
 

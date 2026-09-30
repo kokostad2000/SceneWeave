@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ..contracts import PauseReason, RoleCursor, SchedulerReason
+from ..contracts import ActionType, PauseReason, RoleCursor, SchedulerReason
 from ..context import SceneSnapshot, cutoff_seq, newest_external_seq
 from ..context.models import AgentProfileView
 
@@ -79,6 +79,8 @@ class Scheduler:
     # --- 候选 ---
 
     def is_candidate(self, state: SchedulerState, agent_id: str) -> bool:
+        if state.scene.chat_policy_version == 2:
+            return True
         cursor = state.cursor_for(agent_id)
         if not cursor.startup_opportunity_consumed:
             return True
@@ -107,11 +109,17 @@ class Scheduler:
                         based_on_seq=self._based_on_seq(state, agent.agent_id),
                     )
                 )
+            elif state.scene.chat_policy_version == 2:
+                result.append(Candidate(agent=agent, reason=SchedulerReason.ROUND_ROBIN,
+                                        based_on_seq=self._based_on_seq(state, agent.agent_id)))
         return tuple(result)
 
     # --- 决策 ---
 
     def select(self, state: SchedulerState) -> SchedulingOutcome:
+        if state.scene.chat_policy_version == 2 and self.collectively_silent(state):
+            return SchedulingOutcome(actor_id=None, reason=None, based_on_seq=state.scene.last_seq,
+                                     pause_reason=PauseReason.COLLECTIVE_SILENCE)
         candidates = self.candidates(state)
         if not candidates:
             return SchedulingOutcome(
@@ -156,9 +164,22 @@ class Scheduler:
     # --- 内部 ---
 
     @staticmethod
+    def collectively_silent(state: SchedulerState) -> bool:
+        # Only a role's own successful PASS and visible input can establish silence.
+        # Hidden private traffic cannot invalidate a third party's marker.
+        return bool(state.scene.agents) and all(
+            state.cursor_for(agent.agent_id).last_success_action is ActionType.PASS
+            and state.cursor_for(agent.agent_id).startup_opportunity_consumed
+            and newest_external_seq(state.scene, agent.agent_id) <= state.cursor_for(agent.agent_id).processed_seq
+            for agent in state.scene.agents
+        )
+
+    @staticmethod
     def _last_action_key(state: SchedulerState, agent_id: str) -> tuple[int, float]:
         """排序键：从未行动者排最前（``(0, 0.0)``），其余按上次行动时间升序。"""
 
+        if state.scene.chat_policy_version == 2:
+            return (0, state.cursor_for(agent_id).last_success_order)
         last_action_at = state.cursor_for(agent_id).last_action_at
         if last_action_at is None:
             return (0, 0.0)
@@ -179,9 +200,12 @@ class Scheduler:
         if not messages:
             return None
         latest = max(messages, key=lambda item: item.seq)
-        if not latest.requested_speaker_id or latest.author_agent_id is None:
+        target = latest.recipient_id or latest.requested_speaker_id
+        if not target or latest.author_agent_id is None:
             return None
-        return latest.requested_speaker_id, latest.author_agent_id
+        if state.scene.chat_policy_version == 2 and state.cursor_for(target).processed_seq >= latest.seq:
+            return None
+        return target, latest.author_agent_id
 
 
 __all__ = [
