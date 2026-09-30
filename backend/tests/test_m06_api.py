@@ -49,7 +49,7 @@ def prepare(make_client, analyzer=None, *, script=None, **settings):
 
 
 def scene_with_speech(client: TestClient, *, max_analysis_requests: int | None = None) -> tuple[str, list[str]]:
-    detail = client.post("/api/scenes/preset", json={}).json()
+    detail = client.post("/api/scenes/preset", json={"chat_policy_version": 1}).json()
     if max_analysis_requests is not None:
         detail = create_budget_scene(client, max_analysis_requests)
     scene_id = detail["scene"]["scene_id"]
@@ -64,7 +64,7 @@ def create_budget_scene(client: TestClient, max_analysis_requests: int):
 
     templates = client.get("/api/templates").json()["templates"]
     if len(templates) < 2:
-        client.post("/api/scenes/preset", json={})
+        client.post("/api/scenes/preset", json={"chat_policy_version": 1})
         templates = client.get("/api/templates").json()["templates"]
     return client.post(
         "/api/scenes",
@@ -83,7 +83,7 @@ def create_budget_scene(client: TestClient, max_analysis_requests: int):
 def test_capability_endpoint_reports_disabled_without_external_package(
     api_client: TestClient,
 ) -> None:
-    scene_id = api_client.post("/api/scenes/preset", json={}).json()["scene"]["scene_id"]
+    scene_id = api_client.post("/api/scenes/preset", json={"chat_policy_version": 1}).json()["scene"]["scene_id"]
 
     capability = api_client.get(f"/api/scenes/{scene_id}/analyses/capability").json()["capability"]
 
@@ -270,3 +270,29 @@ def test_analysis_budget_exhaustion_is_reported_without_provider_call(make_clien
     assert second["provider_attempts"] == 0
     assert "已用尽" in second["error"]
     assert len(analyzer.requests) == 1
+
+
+def test_pc_private_analysis_blocked_even_mixed_and_public_relay_keeps_author(make_client):
+    analyzer = FakeAnalyzer()
+    with prepare(make_client, analyzer) as client:
+        detail = client.post("/api/scenes/preset", json={"chat_policy_version": 1}).json()
+        sid = detail["scene"]["scene_id"]
+        a,b,c = [x["agent_id"] for x in detail["agents"]]
+        port = client.app.state.scene_runner._model
+        port._script = [ActionDraft(action="PRIVATE", text="PRIVATE_ANALYSIS_MARKER", recipient_id=b),
+                        ActionDraft(action="SPEAK", text="转述新的公开说法")]
+        for n in range(2):
+            assert client.post(f"/api/scenes/{sid}/commands", json={"request_id":f"pc{n}","command":"STEP"}).json()["accepted"]
+        for seqs in [[1],[1,2]]:
+            response = client.post(f"/api/scenes/{sid}/analyses", json={"agent_id":b,"material_seqs":seqs}).json()
+            assert response["status"] == "BLOCKED" and response["provider_attempts"] == 0
+            assert response["behavior_description"] == "" and response["context"] == ""
+        assert analyzer.requests == []
+        assert client.get(f"/api/scenes/{sid}/state").json()["analysis_requests_used"] == 0
+        response = client.post(f"/api/scenes/{sid}/analyses", json={"agent_id":b,"material_seqs":[2]}).json()
+        assert response["status"] == "NORMAL"
+        req = analyzer.requests[-1]
+        assert "PRIVATE_ANALYSIS_MARKER" not in str(req)
+        assert "转述新的公开说法" in req.behavior_description
+        assert all(m["author_agent_id"] == b for m in response["materials"])
+        assert port.call_count == 2

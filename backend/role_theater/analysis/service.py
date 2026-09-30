@@ -296,6 +296,7 @@ class AnalysisService:
             None,
             PauseReason.MANUAL,
             PauseReason.NO_NEW_INFORMATION,
+            PauseReason.COLLECTIVE_SILENCE,
             PauseReason.PROVIDER_ERROR,
             PauseReason.CONTEXT_LIMIT,
             PauseReason.PROCESS_INTERRUPT,
