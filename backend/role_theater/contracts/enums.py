@@ -9,12 +9,22 @@ from __future__ import annotations
 from enum import StrEnum
 
 
+class SceneMode(StrEnum):
+    SIMULATION = "simulation"
+    DISCUSSION = "discussion"
+
+
 class ActionType(StrEnum):
     """模型只能返回的行动类型（PRD 4.2）。"""
 
     SPEAK = "SPEAK"
+    PRIVATE = "PRIVATE"
     PASS = "PASS"
 
+
+class MessageVisibility(StrEnum):
+    PUBLIC = "PUBLIC"
+    PRIVATE = "PRIVATE"
 
 class EventVisibility(StrEnum):
     """人工事件可见范围（PRD 4.3）。"""
@@ -45,6 +55,7 @@ class PauseReason(StrEnum):
     """暂停原因必须区分（PRD 5.2）。"""
 
     NO_NEW_INFORMATION = "NO_NEW_INFORMATION"
+    COLLECTIVE_SILENCE = "COLLECTIVE_SILENCE"
     MANUAL = "MANUAL"
     PROVIDER_ERROR = "PROVIDER_ERROR"
     CONTEXT_LIMIT = "CONTEXT_LIMIT"

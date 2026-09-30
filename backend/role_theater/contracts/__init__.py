@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+from .mode import SimulationConfig, DiscussionConfig, DiscussionParticipantConfig
 from .action import ActionDraft, ActionRecord
 from .analysis import (
     AnalysisCapability,
@@ -20,7 +21,9 @@ from .api_analysis import (
     AnalysisRecordView,
 )
 from .api import (
+    IdentityCreateRequest,
     AgentCreateRequest,
+    AgentProfileUpdateRequest,
     AgentRenameRequest,
     AgentSpecRequest,
     PresetListView,
@@ -55,6 +58,7 @@ from .enums import (
     PauseReason,
     RunState,
     SchedulerReason,
+    SceneMode,
     TurnStatus,
 )
 from .event import Event, EventSubmission
@@ -117,6 +121,7 @@ from .runtime import (
 )
 from .scene import (
     AgentProfileFields,
+    SceneRoleProfile,
     AgentSnapshot,
     AgentTemplate,
     Budget,
@@ -128,6 +133,9 @@ from .scene import (
 )
 
 __all__ = [
+    "IdentityCreateRequest",
+    "SceneRoleProfile", "AgentProfileUpdateRequest",
+    "SceneMode", "SimulationConfig", "DiscussionConfig", "DiscussionParticipantConfig",
     # ids
     "ActionId",
     "AnalysisId",

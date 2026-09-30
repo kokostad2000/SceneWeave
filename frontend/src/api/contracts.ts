@@ -48,6 +48,9 @@ export function enumValues(name: string): readonly string[] {
  * `tests/contracts.test.ts` 显式核对，缺失即为缺陷。
  */
 export interface CodepointLimits {
+  public_profile: number
+  discussion_focus: number
+  initial_position: number
   readonly agent_name: number
   readonly persona: number
   readonly speech_style: number

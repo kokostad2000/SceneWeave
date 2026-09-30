@@ -36,15 +36,22 @@ def test_health_reports_configured_without_leaking_secret(configured_client: Tes
     assert "placeholder-not-a-real-key" not in response.text
 
 
-def test_health_does_not_require_external_analysis_package() -> None:
+def test_health_does_not_require_external_analysis_package(monkeypatch) -> None:
     """分析能力开启时也不得要求外部包已安装（PRD 6.2）。"""
 
-    client = TestClient(create_app(Settings(_env_file=None, analysis_enabled=True)))
+    from role_theater.analysis import external
+
+    def unavailable(**kwargs):
+        raise ModuleNotFoundError("synthetic absent analysis dependency")
+
+    monkeypatch.setattr(external, "build_upstream_port", unavailable)
+    client = TestClient(create_app(Settings(_env_file=None, analysis_enabled=True,
+        model_provider="deepseek", model_api_key="placeholder-not-a-real-key")))
     response = client.get("/api/health")
 
     assert response.status_code == 200
     body = response.json()
-    # M00 尚未接入真实适配层，因此必须显式报告为关闭，而不是假装可用。
+    # 依赖不可用时显式关闭；不依赖开发机是否安装了可选包。
     assert body["analysis_enabled"] is False
 
 

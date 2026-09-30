@@ -8,6 +8,19 @@
           "action": {
             "$ref": "#/components/schemas/ActionType"
           },
+          "recipient_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipient Id"
+          },
           "reply_to_message_id": {
             "anyOf": [
               {
@@ -19,7 +32,6 @@
                 "type": "null"
               }
             ],
-            "default": null,
             "title": "Reply To Message Id"
           },
           "requested_speaker_id": {
@@ -33,7 +45,6 @@
                 "type": "null"
               }
             ],
-            "default": null,
             "title": "Requested Speaker Id"
           },
           "text": {
@@ -48,9 +59,61 @@
         "title": "ActionDraft",
         "type": "object"
       },
+      "ActionHistoryView": {
+        "additionalProperties": false,
+        "properties": {
+          "action_id": {
+            "title": "Action Id",
+            "type": "string"
+          },
+          "actor_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Actor Id",
+            "type": "string"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "draft": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActionDraft"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "failure_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Kind"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action_id",
+          "actor_id",
+          "status",
+          "created_at"
+        ],
+        "title": "ActionHistoryView",
+        "type": "object"
+      },
       "ActionRecord": {
         "additionalProperties": false,
-        "description": "一次角色调用的落盘结果。\n\n只有 ``SUCCEEDED`` 的 SPEAK／PASS 才推进该角色的已处理位置；失败不推进\n（PRD 5.1）。``input_cursor_seq`` 记录本次调用使用的输入快照截止序号。",
+        "description": "一次角色调用的落盘结果。\n\n只有 ``SUCCEEDED`` 的 SPEAK／PRIVATE／PASS 才推进该角色的已处理位置；失败不推进\n（PRD 5.1）。``input_cursor_seq`` 记录本次调用使用的输入快照截止序号。",
         "properties": {
           "action_id": {
             "maxLength": 64,
@@ -144,6 +207,7 @@
         "description": "模型只能返回的行动类型（PRD 4.2）。",
         "enum": [
           "SPEAK",
+          "PRIVATE",
           "PASS"
         ],
         "title": "ActionType",
@@ -153,6 +217,16 @@
         "additionalProperties": false,
         "description": "由模板新增一名本场角色。",
         "properties": {
+          "discussion_config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiscussionParticipantConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "name": {
             "anyOf": [
               {
@@ -165,6 +239,16 @@
               }
             ],
             "title": "Name"
+          },
+          "role_profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SceneRoleProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "template_id": {
             "maxLength": 64,
@@ -181,9 +265,11 @@
       },
       "AgentProfileFields": {
         "additionalProperties": false,
-        "description": "模板保存的五项内容（PRD 3.2）。长度按 Unicode 码点校验。",
+        "description": "人物名称与旧版兼容资料；新创建流程只复用名称。",
         "properties": {
           "initial_goal": {
+            "default": "",
+            "maxLength": 500,
             "title": "Initial Goal",
             "type": "string"
           },
@@ -192,26 +278,58 @@
             "type": "string"
           },
           "persona": {
+            "default": "",
+            "maxLength": 1000,
             "title": "Persona",
             "type": "string"
           },
           "private_background": {
+            "default": "",
+            "maxLength": 1000,
             "title": "Private Background",
             "type": "string"
           },
+          "public_profile": {
+            "default": "",
+            "maxLength": 1000,
+            "title": "Public Profile",
+            "type": "string"
+          },
           "speech_style": {
+            "default": "",
+            "maxLength": 300,
             "title": "Speech Style",
             "type": "string"
           }
         },
         "required": [
-          "name",
-          "persona",
-          "speech_style",
-          "initial_goal",
-          "private_background"
+          "name"
         ],
         "title": "AgentProfileFields",
+        "type": "object"
+      },
+      "AgentProfileUpdateRequest": {
+        "additionalProperties": false,
+        "description": "未开始场景的完整本场配置；省略讨论配置表示保留。",
+        "properties": {
+          "discussion_config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiscussionParticipantConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "role_profile": {
+            "$ref": "#/components/schemas/SceneRoleProfile"
+          }
+        },
+        "required": [
+          "role_profile"
+        ],
+        "title": "AgentProfileUpdateRequest",
         "type": "object"
       },
       "AgentRenameRequest": {
@@ -241,6 +359,8 @@
             "type": "string"
           },
           "initial_goal": {
+            "default": "",
+            "maxLength": 500,
             "title": "Initial Goal",
             "type": "string"
           },
@@ -249,11 +369,21 @@
             "type": "string"
           },
           "persona": {
+            "default": "",
+            "maxLength": 1000,
             "title": "Persona",
             "type": "string"
           },
           "private_background": {
+            "default": "",
+            "maxLength": 1000,
             "title": "Private Background",
+            "type": "string"
+          },
+          "public_profile": {
+            "default": "",
+            "maxLength": 1000,
+            "title": "Public Profile",
             "type": "string"
           },
           "source_template_id": {
@@ -263,16 +393,14 @@
             "type": "string"
           },
           "speech_style": {
+            "default": "",
+            "maxLength": 300,
             "title": "Speech Style",
             "type": "string"
           }
         },
         "required": [
           "name",
-          "persona",
-          "speech_style",
-          "initial_goal",
-          "private_background",
           "source_template_id",
           "captured_at"
         ],
@@ -283,6 +411,16 @@
         "additionalProperties": false,
         "description": "创建场景时对一名本场角色的要求。",
         "properties": {
+          "discussion_config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiscussionParticipantConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "name": {
             "anyOf": [
               {
@@ -295,6 +433,16 @@
               }
             ],
             "title": "Name"
+          },
+          "role_profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SceneRoleProfile"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "template_id": {
             "maxLength": 64,
@@ -348,6 +496,11 @@
             "title": "Agent Id",
             "type": "string"
           },
+          "generating": {
+            "default": false,
+            "title": "Generating",
+            "type": "boolean"
+          },
           "has_acted": {
             "default": false,
             "title": "Has Acted",
@@ -380,6 +533,32 @@
             ],
             "title": "Last Action Status"
           },
+          "last_failure_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Failure Kind"
+          },
+          "last_successful_draft": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActionDraft"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "max_prompt_codepoints": {
+            "default": 32000,
+            "title": "Max Prompt Codepoints",
+            "type": "integer"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -393,6 +572,12 @@
             "default": 0,
             "minimum": 0.0,
             "title": "Processed Seq",
+            "type": "integer"
+          },
+          "prompt_codepoints": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Prompt Codepoints",
             "type": "integer"
           },
           "speak_count": {
@@ -425,6 +610,8 @@
             "type": "string"
           },
           "initial_goal": {
+            "default": "",
+            "maxLength": 500,
             "title": "Initial Goal",
             "type": "string"
           },
@@ -433,14 +620,26 @@
             "type": "string"
           },
           "persona": {
+            "default": "",
+            "maxLength": 1000,
             "title": "Persona",
             "type": "string"
           },
           "private_background": {
+            "default": "",
+            "maxLength": 1000,
             "title": "Private Background",
             "type": "string"
           },
+          "public_profile": {
+            "default": "",
+            "maxLength": 1000,
+            "title": "Public Profile",
+            "type": "string"
+          },
           "speech_style": {
+            "default": "",
+            "maxLength": 300,
             "title": "Speech Style",
             "type": "string"
           },
@@ -458,10 +657,6 @@
         },
         "required": [
           "name",
-          "persona",
-          "speech_style",
-          "initial_goal",
-          "private_background",
           "template_id",
           "created_at",
           "updated_at"
@@ -473,6 +668,16 @@
         "additionalProperties": false,
         "description": "分析能力开关状态，用于健康检查与界面提示。",
         "properties": {
+          "analyzer_id": {
+            "default": "behavior",
+            "title": "Analyzer Id",
+            "type": "string"
+          },
+          "description": {
+            "default": "基于选中的公开文本解释虚构角色行为；手动调用，只读观察。",
+            "title": "Description",
+            "type": "string"
+          },
           "enabled": {
             "default": false,
             "title": "Enabled",
@@ -482,6 +687,11 @@
             "default": false,
             "title": "External Package Installed",
             "type": "boolean"
+          },
+          "name": {
+            "default": "行为分析",
+            "title": "Name",
+            "type": "string"
           },
           "reason": {
             "anyOf": [
@@ -493,6 +703,20 @@
               }
             ],
             "title": "Reason"
+          },
+          "recommended_modes": {
+            "items": {
+              "$ref": "#/components/schemas/SceneMode"
+            },
+            "title": "Recommended Modes",
+            "type": "array"
+          },
+          "supported_modes": {
+            "items": {
+              "$ref": "#/components/schemas/SceneMode"
+            },
+            "title": "Supported Modes",
+            "type": "array"
           }
         },
         "title": "AnalysisCapability",
@@ -1117,7 +1341,7 @@
             "type": "object"
           },
           "contract_version": {
-            "default": "m00.1",
+            "default": "fc.p1.1",
             "title": "Contract Version",
             "type": "string"
           },
@@ -1225,6 +1449,138 @@
         ],
         "title": "ControlCommandType",
         "type": "string"
+      },
+      "ConversationListView": {
+        "additionalProperties": false,
+        "properties": {
+          "conversations": {
+            "items": {
+              "$ref": "#/components/schemas/ConversationView"
+            },
+            "title": "Conversations",
+            "type": "array"
+          },
+          "scene_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Scene Id",
+            "type": "string"
+          },
+          "total": {
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "scene_id",
+          "conversations",
+          "total"
+        ],
+        "title": "ConversationListView",
+        "type": "object"
+      },
+      "ConversationView": {
+        "additionalProperties": false,
+        "properties": {
+          "conversation_id": {
+            "title": "Conversation Id",
+            "type": "string"
+          },
+          "last_seq": {
+            "minimum": 1.0,
+            "title": "Last Seq",
+            "type": "integer"
+          },
+          "message_count": {
+            "minimum": 1.0,
+            "title": "Message Count",
+            "type": "integer"
+          },
+          "participant_ids": {
+            "items": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Participant Ids",
+            "type": "array"
+          },
+          "participant_names": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Participant Names",
+            "type": "array"
+          },
+          "scene_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Scene Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "conversation_id",
+          "scene_id",
+          "participant_ids",
+          "participant_names",
+          "last_seq",
+          "message_count"
+        ],
+        "title": "ConversationView",
+        "type": "object"
+      },
+      "DiscussionConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "materials": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Materials",
+            "type": "string"
+          },
+          "topic": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Topic",
+            "type": "string"
+          }
+        },
+        "required": [
+          "topic"
+        ],
+        "title": "DiscussionConfig",
+        "type": "object"
+      },
+      "DiscussionParticipantConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "focus": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Focus",
+            "type": "string"
+          },
+          "initial_position": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Initial Position"
+          }
+        },
+        "title": "DiscussionParticipantConfig",
+        "type": "object"
       },
       "EnumSummary": {
         "additionalProperties": false,
@@ -1402,6 +1758,74 @@
         "title": "EventVisibility",
         "type": "string"
       },
+      "FactStatisticsView": {
+        "additionalProperties": false,
+        "description": "已提交记录事实；viewer_id 的统计只包含其合法集合。",
+        "properties": {
+          "participant_ids": {
+            "items": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Participant Ids",
+            "type": "array"
+          },
+          "private_messages": {
+            "minimum": 0.0,
+            "title": "Private Messages",
+            "type": "integer"
+          },
+          "public_messages": {
+            "minimum": 0.0,
+            "title": "Public Messages",
+            "type": "integer"
+          },
+          "reply_relations": {
+            "items": {
+              "$ref": "#/components/schemas/ReplyRelationView"
+            },
+            "title": "Reply Relations",
+            "type": "array"
+          },
+          "role_actions": {
+            "items": {
+              "$ref": "#/components/schemas/RoleActionCountView"
+            },
+            "title": "Role Actions",
+            "type": "array"
+          },
+          "scene_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Scene Id",
+            "type": "string"
+          },
+          "viewer_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Viewer Id"
+          }
+        },
+        "required": [
+          "scene_id",
+          "public_messages",
+          "private_messages",
+          "participant_ids",
+          "reply_relations",
+          "role_actions"
+        ],
+        "title": "FactStatisticsView",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1435,7 +1859,7 @@
             "type": "string"
           },
           "contract_version": {
-            "default": "m00.1",
+            "default": "fc.p1.1",
             "title": "Contract Version",
             "type": "string"
           },
@@ -1466,6 +1890,23 @@
           }
         },
         "title": "HealthResponse",
+        "type": "object"
+      },
+      "IdentityCreateRequest": {
+        "additionalProperties": false,
+        "description": "Name-only creation, distinct from a complete legacy profile.",
+        "properties": {
+          "name": {
+            "maxLength": 30,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "IdentityCreateRequest",
         "type": "object"
       },
       "InjectEventCommand": {
@@ -1530,13 +1971,24 @@
       },
       "Message": {
         "additionalProperties": false,
-        "description": "已提交的公开角色发言（PRD 4.1、4.2）。\n\n``PASS`` 不形成聊天气泡，但保存行动结果并推进已处理位置——因此这里只\n承载 SPEAK 产生的消息。",
+        "description": "已提交的公开或一对一私聊角色消息（PRD 4.1、4.2）。\n\n``PASS`` 不形成聊天气泡，但保存行动结果并推进已处理位置——因此这里只\n承载 SPEAK／PRIVATE 产生的消息。",
         "properties": {
           "actor_id": {
             "maxLength": 64,
             "minLength": 1,
             "title": "Actor Id",
             "type": "string"
+          },
+          "conversation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
           },
           "created_at": {
             "format": "date-time",
@@ -1548,6 +2000,19 @@
             "minLength": 1,
             "title": "Message Id",
             "type": "string"
+          },
+          "recipient_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipient Id"
           },
           "reply_to_message_id": {
             "anyOf": [
@@ -1581,6 +2046,11 @@
             "title": "Scene Id",
             "type": "string"
           },
+          "schema_version": {
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
           "seq": {
             "minimum": 1.0,
             "title": "Seq",
@@ -1589,6 +2059,10 @@
           "text": {
             "title": "Text",
             "type": "string"
+          },
+          "visibility": {
+            "$ref": "#/components/schemas/MessageVisibility",
+            "default": "PUBLIC"
           }
         },
         "required": [
@@ -1602,6 +2076,14 @@
         "title": "Message",
         "type": "object"
       },
+      "MessageVisibility": {
+        "enum": [
+          "PUBLIC",
+          "PRIVATE"
+        ],
+        "title": "MessageVisibility",
+        "type": "string"
+      },
       "ModelActionRequest": {
         "additionalProperties": false,
         "description": "一次角色行动请求。\n\n``prompt`` 由 ContextBuilder（M02）按实际可见性构建；``cursor_seq`` 是本次\n输入的截止序号快照，行动只能基于发送时的快照（PRD 5.1）。",
@@ -1612,6 +2094,15 @@
             "title": "Actor Id",
             "type": "string"
           },
+          "chat_policy_version": {
+            "default": 1,
+            "enum": [
+              1,
+              2
+            ],
+            "title": "Chat Policy Version",
+            "type": "integer"
+          },
           "cursor_seq": {
             "minimum": 0,
             "title": "Cursor Seq",
@@ -1620,7 +2111,7 @@
           "params": {
             "$ref": "#/components/schemas/ModelParams",
             "default": {
-              "max_output_tokens": 1024,
+              "max_output_tokens": 4096,
               "model": "deepseek-flash",
               "request_timeout_seconds": 90,
               "response_format": "json_object",
@@ -1839,7 +2330,7 @@
         "description": "发送给模型服务端的参数（PRD 2.2 初值，联调后再评审）。\n\n注意：思考模式开启时温度参数无效，不能靠较低的 temperature 假设思考已关闭。\n本期不发送 ``reasoning_effort=100``，不发送 tools。",
         "properties": {
           "max_output_tokens": {
-            "default": 1024,
+            "default": 4096,
             "minimum": 1,
             "title": "Max Output Tokens",
             "type": "integer"
@@ -1890,6 +2381,7 @@
         "description": "暂停原因必须区分（PRD 5.2）。",
         "enum": [
           "NO_NEW_INFORMATION",
+          "COLLECTIVE_SILENCE",
           "MANUAL",
           "PROVIDER_ERROR",
           "CONTEXT_LIMIT",
@@ -1919,6 +2411,24 @@
         "additionalProperties": false,
         "description": "用预置场景创建会话。",
         "properties": {
+          "chat_policy_version": {
+            "default": 2,
+            "enum": [
+              1,
+              2
+            ],
+            "title": "Chat Policy Version",
+            "type": "integer"
+          },
+          "configuration_version": {
+            "default": 1,
+            "enum": [
+              1,
+              2
+            ],
+            "title": "Configuration Version",
+            "type": "integer"
+          },
           "preset_key": {
             "default": "roommates",
             "maxLength": 64,
@@ -1999,6 +2509,37 @@
             },
             "title": "Allowed Speaker Ids",
             "type": "array"
+          },
+          "chat_policy_version": {
+            "default": 1,
+            "enum": [
+              1,
+              2
+            ],
+            "title": "Chat Policy Version",
+            "type": "integer"
+          },
+          "private_message_seqs": {
+            "additionalProperties": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Private Message Seqs",
+            "type": "object"
+          },
+          "received_private_messages": {
+            "additionalProperties": {
+              "maxLength": 64,
+              "minLength": 1,
+              "type": "string"
+            },
+            "propertyNames": {
+              "maxLength": 64,
+              "minLength": 1
+            },
+            "title": "Received Private Messages",
+            "type": "object"
           }
         },
         "required": [
@@ -2007,9 +2548,91 @@
         "title": "ReferenceScope",
         "type": "object"
       },
+      "ReplyRelationView": {
+        "additionalProperties": false,
+        "properties": {
+          "message_id": {
+            "title": "Message Id",
+            "type": "string"
+          },
+          "reply_to_message_id": {
+            "title": "Reply To Message Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message_id",
+          "reply_to_message_id"
+        ],
+        "title": "ReplyRelationView",
+        "type": "object"
+      },
+      "RoleActionCountView": {
+        "additionalProperties": false,
+        "properties": {
+          "agent_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "failed": {
+            "minimum": 0.0,
+            "title": "Failed",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "passes": {
+            "minimum": 0.0,
+            "title": "Passes",
+            "type": "integer"
+          },
+          "private_initiations": {
+            "minimum": 0.0,
+            "title": "Private Initiations",
+            "type": "integer"
+          },
+          "private_replies": {
+            "minimum": 0.0,
+            "title": "Private Replies",
+            "type": "integer"
+          },
+          "public_speaks": {
+            "minimum": 0.0,
+            "title": "Public Speaks",
+            "type": "integer"
+          },
+          "succeeded": {
+            "minimum": 0.0,
+            "title": "Succeeded",
+            "type": "integer"
+          },
+          "unknown": {
+            "minimum": 0.0,
+            "title": "Unknown",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "agent_id",
+          "name",
+          "succeeded",
+          "public_speaks",
+          "private_initiations",
+          "private_replies",
+          "passes",
+          "failed",
+          "unknown"
+        ],
+        "title": "RoleActionCountView",
+        "type": "object"
+      },
       "RoleCursor": {
         "additionalProperties": false,
-        "description": "每个角色的已处理位置。只有成功的 SPEAK／PASS 才推进（PRD 5.1）。",
+        "description": "每个角色的已处理位置。只有成功的 SPEAK／PRIVATE／PASS 才推进（PRD 5.1）。",
         "properties": {
           "agent_id": {
             "maxLength": 64,
@@ -2059,6 +2682,23 @@
             ],
             "default": null,
             "title": "Last Action Turn Id"
+          },
+          "last_success_action": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActionType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "last_success_order": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Last Success Order",
+            "type": "integer"
           },
           "processed_seq": {
             "default": 0,
@@ -2276,6 +2916,24 @@
           "budget": {
             "$ref": "#/components/schemas/Budget"
           },
+          "chat_policy_version": {
+            "default": 1,
+            "enum": [
+              1,
+              2
+            ],
+            "title": "Chat Policy Version",
+            "type": "integer"
+          },
+          "configuration_version": {
+            "default": 1,
+            "enum": [
+              1,
+              2
+            ],
+            "title": "Configuration Version",
+            "type": "integer"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -2292,6 +2950,24 @@
               }
             ],
             "title": "Ended At"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/SceneMode",
+            "default": "simulation"
+          },
+          "mode_config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SimulationConfig"
+              },
+              {
+                "$ref": "#/components/schemas/DiscussionConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mode Config"
           },
           "pause_reason": {
             "anyOf": [
@@ -2362,6 +3038,16 @@
             "title": "Created At",
             "type": "string"
           },
+          "discussion_config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiscussionParticipantConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -2411,6 +3097,24 @@
             "title": "Background",
             "type": "string"
           },
+          "chat_policy_version": {
+            "default": 2,
+            "enum": [
+              1,
+              2
+            ],
+            "title": "Chat Policy Version",
+            "type": "integer"
+          },
+          "configuration_version": {
+            "default": 1,
+            "enum": [
+              1,
+              2
+            ],
+            "title": "Configuration Version",
+            "type": "integer"
+          },
           "max_analysis_requests": {
             "anyOf": [
               {
@@ -2436,6 +3140,24 @@
               }
             ],
             "title": "Max Role Requests"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/SceneMode",
+            "default": "simulation"
+          },
+          "mode_config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SimulationConfig"
+              },
+              {
+                "$ref": "#/components/schemas/DiscussionConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mode Config"
           },
           "title": {
             "maxLength": 120,
@@ -2495,6 +3217,52 @@
         "title": "SceneListView",
         "type": "object"
       },
+      "SceneMode": {
+        "enum": [
+          "simulation",
+          "discussion"
+        ],
+        "title": "SceneMode",
+        "type": "string"
+      },
+      "SceneRoleProfile": {
+        "additionalProperties": false,
+        "description": "本场行为资料；未填写保持为空，不回退到人物目录。",
+        "properties": {
+          "initial_goal": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Initial Goal",
+            "type": "string"
+          },
+          "persona": {
+            "default": "",
+            "maxLength": 1000,
+            "title": "Persona",
+            "type": "string"
+          },
+          "private_background": {
+            "default": "",
+            "maxLength": 1000,
+            "title": "Private Background",
+            "type": "string"
+          },
+          "public_profile": {
+            "default": "",
+            "maxLength": 1000,
+            "title": "Public Profile",
+            "type": "string"
+          },
+          "speech_style": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Speech Style",
+            "type": "string"
+          }
+        },
+        "title": "SceneRoleProfile",
+        "type": "object"
+      },
       "SceneSummaryView": {
         "additionalProperties": false,
         "description": "场景列表项。",
@@ -2511,6 +3279,10 @@
           "created_at": {
             "title": "Created At",
             "type": "string"
+          },
+          "mode": {
+            "$ref": "#/components/schemas/SceneMode",
+            "default": "simulation"
           },
           "scene_id": {
             "maxLength": 64,
@@ -2597,6 +3369,25 @@
         "title": "SchedulerReason",
         "type": "string"
       },
+      "SimulationConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "public_information": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Public Information",
+            "type": "string"
+          },
+          "situation": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Situation",
+            "type": "string"
+          }
+        },
+        "title": "SimulationConfig",
+        "type": "object"
+      },
       "TemplateCopyRequest": {
         "additionalProperties": false,
         "description": "复制角色模板；省略 ``name`` 时自动取第一个可用的不重复名称。",
@@ -2623,6 +3414,8 @@
         "description": "创建角色模板。",
         "properties": {
           "initial_goal": {
+            "default": "",
+            "maxLength": 500,
             "title": "Initial Goal",
             "type": "string"
           },
@@ -2631,24 +3424,32 @@
             "type": "string"
           },
           "persona": {
+            "default": "",
+            "maxLength": 1000,
             "title": "Persona",
             "type": "string"
           },
           "private_background": {
+            "default": "",
+            "maxLength": 1000,
             "title": "Private Background",
             "type": "string"
           },
+          "public_profile": {
+            "default": "",
+            "maxLength": 1000,
+            "title": "Public Profile",
+            "type": "string"
+          },
           "speech_style": {
+            "default": "",
+            "maxLength": 300,
             "title": "Speech Style",
             "type": "string"
           }
         },
         "required": [
-          "name",
-          "persona",
-          "speech_style",
-          "initial_goal",
-          "private_background"
+          "name"
         ],
         "title": "TemplateCreateRequest",
         "type": "object"
@@ -2720,6 +3521,17 @@
               }
             ],
             "title": "Private Background"
+          },
+          "public_profile": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Public Profile"
           },
           "speech_style": {
             "anyOf": [
@@ -2826,10 +3638,24 @@
         "additionalProperties": false,
         "description": "时间线（含预算与运行状态，便于历史页只读渲染）。",
         "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/ActionHistoryView"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
           "analysis_requests_used": {
             "minimum": 0.0,
             "title": "Analysis Requests Used",
             "type": "integer"
+          },
+          "conversations": {
+            "items": {
+              "$ref": "#/components/schemas/ConversationView"
+            },
+            "title": "Conversations",
+            "type": "array"
           },
           "entries": {
             "items": {
@@ -2979,6 +3805,13 @@
         "additionalProperties": false,
         "description": "角色视角（PRD 7.2）：与调用器**实际使用相同**的上下文选择结果。",
         "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/ActionHistoryView"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
           "agent_id": {
             "maxLength": 64,
             "minLength": 1,
@@ -2989,14 +3822,39 @@
             "title": "Agent Name",
             "type": "string"
           },
+          "conversations": {
+            "items": {
+              "$ref": "#/components/schemas/ConversationView"
+            },
+            "title": "Conversations",
+            "type": "array"
+          },
           "cutoff_seq": {
             "minimum": 0.0,
             "title": "Cutoff Seq",
             "type": "integer"
           },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/TimelineEntryView"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "max_prompt_codepoints": {
+            "default": 32000,
+            "title": "Max Prompt Codepoints",
+            "type": "integer"
+          },
           "prompt": {
             "title": "Prompt",
             "type": "string"
+          },
+          "prompt_codepoints": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Prompt Codepoints",
+            "type": "integer"
           },
           "prompt_template_id": {
             "title": "Prompt Template Id",
@@ -3098,6 +3956,24 @@
     "/api/scenes": {
       "get": {
         "operationId": "list_scenes_api_scenes_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "mode",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SceneMode"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Mode"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -3108,6 +3984,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "List Scenes",
@@ -3326,6 +4212,22 @@
               "title": "Scene Id",
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "viewer_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Viewer Id"
+            }
           }
         ],
         "responses": {
@@ -3454,6 +4356,67 @@
           }
         },
         "summary": "Rename Agent",
+        "tags": [
+          "m01-scenes"
+        ]
+      }
+    },
+    "/api/scenes/{scene_id}/agents/{agent_id}/profile": {
+      "patch": {
+        "operationId": "update_agent_profile_api_scenes__scene_id__agents__agent_id__profile_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scene_id",
+            "required": true,
+            "schema": {
+              "title": "Scene Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentProfileUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SceneAgent"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Agent Profile",
         "tags": [
           "m01-scenes"
         ]
@@ -3717,6 +4680,87 @@
         ]
       }
     },
+    "/api/scenes/{scene_id}/conversations": {
+      "get": {
+        "operationId": "conversations_api_scenes__scene_id__conversations_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scene_id",
+            "required": true,
+            "schema": {
+              "title": "Scene Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "viewer_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Viewer Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationListView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Conversations",
+        "tags": [
+          "m04-runtime"
+        ]
+      }
+    },
     "/api/scenes/{scene_id}/events": {
       "get": {
         "description": "列出全部事件及其状态（界面区分已接受／已生效）。",
@@ -3729,6 +4773,22 @@
             "schema": {
               "title": "Scene Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "viewer_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Viewer Id"
             }
           }
         ],
@@ -3853,6 +4913,64 @@
           }
         },
         "summary": "Run State",
+        "tags": [
+          "m04-runtime"
+        ]
+      }
+    },
+    "/api/scenes/{scene_id}/statistics": {
+      "get": {
+        "operationId": "fact_statistics_api_scenes__scene_id__statistics_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scene_id",
+            "required": true,
+            "schema": {
+              "title": "Scene Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "viewer_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Viewer Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactStatisticsView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Fact Statistics",
         "tags": [
           "m04-runtime"
         ]
@@ -3995,6 +5113,67 @@
               "title": "Since Seq",
               "type": "integer"
             }
+          },
+          {
+            "in": "query",
+            "name": "viewer_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Viewer Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "conversation_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Conversation Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 1000,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Limit"
+            }
           }
         ],
         "responses": {
@@ -4051,7 +5230,15 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TemplateCreateRequest"
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/TemplateCreateRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/IdentityCreateRequest"
+                  }
+                ],
+                "title": "Payload"
               }
             }
           },

@@ -39,7 +39,7 @@ def test_speak_accepts_exactly_200_codepoints_and_rejects_201() -> None:
     ActionDraft(action=ActionType.SPEAK, text=allowed)
 
     with pytest.raises(ValidationError):
-        ActionDraft(action=ActionType.SPEAK, text="字" * 201)
+        ActionDraft.model_validate({"action": "SPEAK", "text": "字" * 201}, context={"chat_policy_version": 1})
 
 
 def test_speak_length_uses_unicode_codepoints_not_utf16_units() -> None:
@@ -51,7 +51,7 @@ def test_speak_length_uses_unicode_codepoints_not_utf16_units() -> None:
 
     ActionDraft(action=ActionType.SPEAK, text=emoji * 200)
     with pytest.raises(ValidationError):
-        ActionDraft(action=ActionType.SPEAK, text=emoji * 201)
+        ActionDraft.model_validate({"action": "SPEAK", "text": emoji * 201}, context={"chat_policy_version": 1})
 
 
 def test_pass_must_be_completely_empty() -> None:
@@ -134,3 +134,31 @@ def test_message_id_only_for_successful_speak() -> None:
         draft=ActionDraft(action=ActionType.SPEAK, text="好"),
     )
     assert ok.message_id == "msg-1"
+
+
+@pytest.mark.parametrize("reply", [None, "msg-old"])
+def test_pc_private_draft_and_record(reply):
+    from datetime import UTC, datetime
+    draft = ActionDraft(action="PRIVATE", text=" 😀 " * 2, recipient_id="b", reply_to_message_id=reply)
+    record = ActionRecord(action_id="a", turn_id="t", attempt_id="x", scene_id="s", actor_id="a",
+        status="SUCCEEDED", draft=draft, message_id="m", input_cursor_seq=1,
+        prompt_template_id="role_action@pc.1", created_at=datetime.now(UTC))
+    assert record.draft.recipient_id == "b"
+
+
+@pytest.mark.parametrize("fields", [
+    {"recipient_id": None}, {"recipient_id": ["b", "c"]},
+    {"recipient_id": "b", "requested_speaker_id": "c"},
+    {"recipient_id": "b", "text": "😀" * 201}, {"recipient_id": "b", "text": " "},
+    {"recipient_id": "b", "actor_id": "a"},
+])
+def test_pc_private_structure_rejects(fields):
+    with pytest.raises(ValidationError):
+        ActionDraft.model_validate({"action": "PRIVATE", "text": "hi", **fields}, context={"chat_policy_version": 1})
+
+
+@pytest.mark.parametrize("action", ["SPEAK", "PASS"])
+def test_pc_public_and_pass_reject_recipient(action):
+    with pytest.raises(ValidationError):
+        ActionDraft(action=action, text="hi" if action == "SPEAK" else "", recipient_id="b")
+    assert ActionDraft.model_validate({"action": action, "text": "hi" if action == "SPEAK" else ""}).recipient_id is None

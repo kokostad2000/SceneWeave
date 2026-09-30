@@ -10,6 +10,7 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .action import ActionDraft
+from .scene import ChatPolicyVersion
 from .enums import ModelFailureKind
 from .ids import AgentId, MessageId, SceneId
 from .limits import (
@@ -74,6 +75,7 @@ class ModelActionRequest(BaseModel):
 
     scene_id: SceneId
     actor_id: AgentId
+    chat_policy_version: ChatPolicyVersion = 1
     prompt_template_id: str = Field(min_length=1)
     prompt: str
     cursor_seq: int = Field(ge=0)
@@ -83,6 +85,8 @@ class ModelActionRequest(BaseModel):
 
     @model_validator(mode="after")
     def _check_prompt(self) -> ModelActionRequest:
+        if self.references is not None and self.references.chat_policy_version != self.chat_policy_version:
+            raise ValueError("请求与引用范围的聊天策略版本不一致")
         if len(self.prompt) > MAX_PROMPT_CHARS:
             raise ValueError(
                 f"prompt 超过 max_prompt_chars={MAX_PROMPT_CHARS}，必须暂停而不是静默截断"
@@ -115,9 +119,12 @@ class ReferenceScope(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     actor_id: AgentId
+    chat_policy_version: ChatPolicyVersion = 1
     allowed_message_ids: list[MessageId] = Field(default_factory=list)
     #: 发言序号 → 消息 ID，仅包含 ``allowed_message_ids`` 中的同一批发言。
     allowed_message_seqs: dict[int, MessageId] = Field(default_factory=dict)
+    received_private_messages: dict[MessageId, AgentId] = Field(default_factory=dict)
+    private_message_seqs: dict[int, MessageId] = Field(default_factory=dict)
     allowed_speaker_ids: list[AgentId] = Field(default_factory=list)
 
 

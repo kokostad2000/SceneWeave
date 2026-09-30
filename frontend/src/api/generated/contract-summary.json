@@ -10,13 +10,28 @@
     "max_analysis_requests_per_scene": 4,
     "max_role_requests_per_scene": 200
   },
-  "contract_version": "m00.1",
+  "contract_version": "fc.p1.1",
   "enums": [
+    {
+      "name": "SceneMode",
+      "values": [
+        "simulation",
+        "discussion"
+      ]
+    },
     {
       "name": "ActionType",
       "values": [
         "SPEAK",
+        "PRIVATE",
         "PASS"
+      ]
+    },
+    {
+      "name": "MessageVisibility",
+      "values": [
+        "PUBLIC",
+        "PRIVATE"
       ]
     },
     {
@@ -48,6 +63,7 @@
       "name": "PauseReason",
       "values": [
         "NO_NEW_INFORMATION",
+        "COLLECTIVE_SILENCE",
         "MANUAL",
         "PROVIDER_ERROR",
         "CONTEXT_LIMIT",
@@ -113,17 +129,20 @@
     "agent_name": 30,
     "analysis_behavior_description": 4000,
     "analysis_context": 4000,
+    "discussion_focus": 500,
     "event_body": 1000,
     "initial_goal": 500,
+    "initial_position": 1000,
     "max_prompt_chars": 32000,
     "persona": 1000,
     "private_background": 1000,
+    "public_profile": 1000,
     "scene_background": 2000,
-    "speak_text": 200,
+    "speak_text": 1000,
     "speech_style": 300
   },
   "model_params": {
-    "max_output_tokens": 1024,
+    "max_output_tokens": 4096,
     "min_speak_text_codepoints": 1,
     "model": "deepseek-flash",
     "request_timeout_seconds": 90,

@@ -12,7 +12,7 @@ import {
 describe('契约摘要（由后端导出，前端不手写枚举）', () => {
   it('显示名与契约版本来自后端契约层', () => {
     expect(contractSummary.app_name).toBe('SceneWeave')
-    expect(contractSummary.contract_version).toBe('m00.1')
+    expect(contractSummary.contract_version).toBe('fc.p1.1')
     expect(contractSummary.schema_version).toBe(1)
   })
 
@@ -21,7 +21,7 @@ describe('契约摘要（由后端导出，前端不手写枚举）', () => {
   })
 
   it('行动协议枚举与 PRD 4.2 一致', () => {
-    expect(enumValues('ActionType')).toEqual(['SPEAK', 'PASS'])
+    expect(enumValues('ActionType')).toEqual(['SPEAK', 'PRIVATE', 'PASS'])
     expect(enumValues('TurnStatus')).toEqual(['SUCCEEDED', 'FAILED', 'UNKNOWN'])
   })
 
@@ -54,7 +54,7 @@ describe('契约摘要（由后端导出，前端不手写枚举）', () => {
   })
 
   it('长度上限与预算与 PRD 一致', () => {
-    expect(contractSummary.limit_codepoints.speak_text).toBe(200)
+    expect(contractSummary.limit_codepoints.speak_text).toBe(1000)
     expect(contractSummary.limit_codepoints.agent_name).toBe(30)
     expect(contractSummary.limit_codepoints.scene_background).toBe(2000)
     expect(contractSummary.agent_count).toEqual({ min: 2, max: 8, default: 3 })
@@ -66,7 +66,7 @@ describe('契约摘要（由后端导出，前端不手写枚举）', () => {
   it('运行参数初值来自后端契约', () => {
     expect(contractSummary.model_params.model).toBe('deepseek-flash')
     expect(contractSummary.model_params.sdk_max_retries).toBe(0)
-    expect(contractSummary.model_params.max_output_tokens).toBe(1024)
+    expect(contractSummary.model_params.max_output_tokens).toBe(4096)
     expect(contractSummary.model_params.request_timeout_seconds).toBe(90)
     expect(contractSummary.model_params.thinking_enabled).toBe(false)
   })
