@@ -14,6 +14,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from .mode import SimulationConfig, DiscussionConfig, DiscussionParticipantConfig
 from .action import ActionDraft, ActionRecord
 from .analysis import (
     AnalysisCapability,
@@ -28,6 +29,12 @@ from .api_analysis import (
     AnalysisRecordView,
 )
 from .api_runtime import (
+    FactStatisticsView,
+    RoleActionCountView,
+    ReplyRelationView,
+    ConversationView,
+    ConversationListView,
+    ActionHistoryView,
     AgentStatusListView,
     AgentStatusView,
     ControlCommandRequest,
@@ -40,7 +47,9 @@ from .api_runtime import (
     ViewpointView,
 )
 from .api import (
+    IdentityCreateRequest,
     AgentCreateRequest,
+    AgentProfileUpdateRequest,
     AgentRenameRequest,
     AgentSpecRequest,
     PresetListView,
@@ -82,6 +91,7 @@ from .runtime import (
 )
 from .scene import (
     AgentProfileFields,
+    SceneRoleProfile,
     AgentSnapshot,
     AgentTemplate,
     Budget,
@@ -93,8 +103,14 @@ from .scene import (
 
 #: 全部契约模型（含请求／响应与端口结构）。
 CONTRACT_MODELS: dict[str, type[BaseModel]] = {
+    "IdentityCreateRequest": IdentityCreateRequest,
+    "SimulationConfig": SimulationConfig,
+    "DiscussionConfig": DiscussionConfig,
+    "DiscussionParticipantConfig": DiscussionParticipantConfig,
     # 角色 / 场景 / 消息
     "AgentProfileFields": AgentProfileFields,
+    "SceneRoleProfile": SceneRoleProfile,
+    "AgentProfileUpdateRequest": AgentProfileUpdateRequest,
     "AgentTemplate": AgentTemplate,
     "AgentSnapshot": AgentSnapshot,
     "SceneAgent": SceneAgent,
@@ -152,6 +168,12 @@ CONTRACT_MODELS: dict[str, type[BaseModel]] = {
     "InjectEventRequest": InjectEventRequest,
     "TimelineEntryView": TimelineEntryView,
     "TimelineView": TimelineView,
+    "ConversationView": ConversationView,
+    "ConversationListView": ConversationListView,
+    "FactStatisticsView": FactStatisticsView,
+    "RoleActionCountView": RoleActionCountView,
+    "ReplyRelationView": ReplyRelationView,
+    "ActionHistoryView": ActionHistoryView,
     "ViewpointView": ViewpointView,
     "RunStateView": RunStateView,
     "EventView": EventView,

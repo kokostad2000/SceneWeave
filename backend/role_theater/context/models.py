@@ -13,6 +13,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import StrEnum
 
+from ..contracts.enums import MessageVisibility, SceneMode
+from ..contracts.mode import SimulationConfig, DiscussionConfig, DiscussionParticipantConfig
 from ..contracts import AgentSnapshot, Event, EventVisibility, Message
 
 
@@ -46,6 +48,9 @@ class TimelineItem:
     #: 仅发言使用。
     reply_to_message_id: str | None = None
     requested_speaker_id: str | None = None
+    message_visibility: MessageVisibility = MessageVisibility.PUBLIC
+    recipient_id: str | None = None
+    conversation_id: str | None = None
 
     @staticmethod
     def from_message(message: Message, *, author_name: str | None = None) -> TimelineItem:
@@ -58,6 +63,9 @@ class TimelineItem:
             message_id=message.message_id,
             reply_to_message_id=message.reply_to_message_id,
             requested_speaker_id=message.requested_speaker_id,
+            message_visibility=message.visibility,
+            recipient_id=message.recipient_id,
+            conversation_id=message.conversation_id,
         )
 
     @staticmethod
@@ -81,6 +89,7 @@ class AgentProfileView:
     name: str
     order_index: int
     snapshot: AgentSnapshot
+    discussion_config: DiscussionParticipantConfig | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,6 +100,10 @@ class SceneSnapshot:
     background: str
     agents: tuple[AgentProfileView, ...]
     timeline: tuple[TimelineItem, ...] = ()
+    mode: SceneMode = SceneMode.SIMULATION
+    mode_config: SimulationConfig | DiscussionConfig | None = None
+    configuration_version: int = 1
+    chat_policy_version: int = 1
 
     def agent(self, agent_id: str) -> AgentProfileView:
         for candidate in self.agents:
@@ -137,6 +150,30 @@ class RoleContext:
     prompt: str = field(repr=False)
 
 
+@dataclass(frozen=True, slots=True)
+class PublicRole:
+    agent_id: str
+    name: str
+    public_profile: str
+
+
+@dataclass(frozen=True, slots=True)
+class VisibleContext:
+    """权限边界后的材料；渲染器没有完整 Scene 或第三方快照引用。"""
+    actor_id: str
+    actor_name: str
+    mode: SceneMode
+    background: str
+    mode_config: SimulationConfig | DiscussionConfig
+    roster: tuple[PublicRole, ...]
+    own_snapshot: AgentSnapshot
+    own_discussion: DiscussionParticipantConfig | None
+    items: tuple[TimelineItem, ...]
+    cutoff_seq: int
+    configuration_version: int = 1
+    chat_policy_version: int = 1
+
+
 def agent_profile_views(agents) -> tuple[AgentProfileView, ...]:
     """由 M01 的本场角色（契约模型）构造只读视图。"""
 
@@ -146,6 +183,7 @@ def agent_profile_views(agents) -> tuple[AgentProfileView, ...]:
             name=agent.name,
             order_index=agent.order_index,
             snapshot=agent.snapshot,
+            discussion_config=getattr(agent, "discussion_config", None),
         )
         for agent in agents
     )

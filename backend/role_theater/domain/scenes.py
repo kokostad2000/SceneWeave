@@ -25,6 +25,11 @@ from ..contracts import (
     Scene,
     SceneAgent,
     validate_agent_count,
+    SceneMode,
+    SimulationConfig,
+    DiscussionConfig,
+    DiscussionParticipantConfig,
+    SceneRoleProfile,
 )
 from ..presets import DEFAULT_PRESET_KEY, PresetScene, get_preset
 from ..storage import SceneRepository
@@ -34,6 +39,7 @@ from .errors import (
     DuplicateNameError,
     SceneLockedError,
     UnknownTemplateError,
+    InvalidInputError,
 )
 from .templates import TemplateService, utcnow
 
@@ -52,6 +58,8 @@ class AgentSpec:
 
     template_id: str
     name: str | None = None
+    discussion_config: DiscussionParticipantConfig | None = None
+    role_profile: SceneRoleProfile | None = None
 
 
 @dataclass(frozen=True)
@@ -96,11 +104,11 @@ class SceneService:
 
     # --- 查询 ---
 
-    def list_summaries(self) -> list[SceneSummary]:
+    def list_summaries(self, mode: SceneMode | None = None) -> list[SceneSummary]:
         counts = self._scenes.agent_counts()
         return [
             SceneSummary(scene=scene, agent_count=counts.get(scene.scene_id, 0))
-            for scene in self._scenes.list_scenes()
+            for scene in self._scenes.list_scenes(mode)
         ]
 
     def get_detail(self, scene_id: str) -> SceneDetail:
@@ -119,6 +127,10 @@ class SceneService:
         max_role_requests: int | None = None,
         max_analysis_requests: int | None = None,
         preset_key: str | None = None,
+        mode: SceneMode = SceneMode.SIMULATION,
+        mode_config: SimulationConfig | DiscussionConfig | None = None,
+        configuration_version: int = 1,
+        chat_policy_version: int = 2,
     ) -> SceneDetail:
         # 数量由契约常量驱动：三人增至五人不改代码（PRD 1.2、M01 通过条件）。
         validate_agent_count(len(agent_specs))
@@ -140,15 +152,19 @@ class SceneService:
             scene_id=self._scene_id_factory(),
             title=title,
             background=background,
+            mode=mode,
+            mode_config=mode_config,
+            configuration_version=configuration_version,
+            chat_policy_version=chat_policy_version,
             status=RunState.READY,
             budget=budget,
             created_at=now,
         )
-        agents = self._build_agents(scene.scene_id, agent_specs, now)
+        agents = self._build_agents(scene, agent_specs, now)
         self._scenes.insert_scene_with_agents(scene, agents, preset_key=preset_key)
         return SceneDetail(scene=scene, agents=tuple(agents))
 
-    def create_preset(self, preset_key: str = DEFAULT_PRESET_KEY) -> SceneDetail:
+    def create_preset(self, preset_key: str = DEFAULT_PRESET_KEY, *, configuration_version: int = 1, chat_policy_version: int = 2) -> SceneDetail:
         """用预置场景创建会话；缺失的预置模板会被补齐。"""
 
         try:
@@ -156,9 +172,10 @@ class SceneService:
         except KeyError as exc:
             raise DomainNotFoundError(f"未知的预置场景：{preset_key}") from exc
 
-        templates_by_name = self._templates.ensure_preset_templates(preset.key)
+        templates_by_name = self._templates.ensure_preset_templates(preset.key, identity_only=configuration_version == 2)
         specs = [
-            AgentSpec(template_id=templates_by_name[agent.name].template_id, name=agent.name)
+            AgentSpec(template_id=templates_by_name[agent.name].template_id, name=agent.name,
+                      role_profile=SceneRoleProfile(**agent.to_profile().model_dump(exclude={"name"})) if configuration_version == 2 else None)
             for agent in preset.agents
         ]
         return self.create(
@@ -166,6 +183,8 @@ class SceneService:
             background=preset.background,
             agent_specs=specs,
             preset_key=preset.key,
+            configuration_version=configuration_version,
+            chat_policy_version=chat_policy_version,
         )
 
     # --- 本场角色维护 ---
@@ -176,9 +195,14 @@ class SceneService:
         *,
         template_id: str,
         name: str | None = None,
+        discussion_config: DiscussionParticipantConfig | None = None,
+        role_profile: SceneRoleProfile | None = None,
+        role_profile_provided: bool = False,
     ) -> SceneAgent:
         scene = self._require_scene(scene_id)
         self._require_unlocked(scene)
+        if scene.configuration_version == 1 and role_profile_provided:
+            raise InvalidInputError("本场 role_profile 需要 configuration_version=2")
 
         count = self._scenes.count_agents(scene_id)
         if count >= MAX_AGENTS_PER_SCENE:
@@ -200,11 +224,30 @@ class SceneService:
             scene_id=scene_id,
             name=resolved_name,
             order_index=self._scenes.next_order_index(scene_id),
-            snapshot=self._snapshot(template, now),
+            snapshot=self._snapshot(template, now, scene.configuration_version, role_profile),
+            discussion_config=self._participant_config(scene, discussion_config),
             created_at=now,
         )
         self._scenes.insert_agent(agent)
         return agent
+
+    def update_agent_profile(self, scene_id: str, agent_id: str, role_profile: SceneRoleProfile,
+                             *, discussion_config: DiscussionParticipantConfig | None = None,
+                             replace_discussion: bool = False) -> SceneAgent:
+        scene = self._require_scene(scene_id)
+        self._require_unlocked(scene)
+        if scene.configuration_version != 2:
+            raise InvalidInputError("旧版场景保留原快照；请新建场景配置")
+        if scene.status is not RunState.READY:
+            raise SceneLockedError("场景不在配置阶段，不能修改本场设定")
+        current = self._require_agent(scene_id, agent_id)
+        profile = SceneRoleProfile.model_validate(role_profile)
+        discussion = self._participant_config(scene, discussion_config) if replace_discussion else current.discussion_config
+        snapshot = AgentSnapshot(source_template_id=current.snapshot.source_template_id,
+                                 name=current.snapshot.name, captured_at=self._clock(), **profile.model_dump())
+        updated = current.model_copy(update={"snapshot":snapshot,"discussion_config":discussion})
+        self._scenes.update_agent_profile(updated)
+        return updated
 
     def rename_agent(self, scene_id: str, agent_id: str, new_name: str) -> SceneAgent:
         scene = self._require_scene(scene_id)
@@ -247,7 +290,7 @@ class SceneService:
     # --- 内部 ---
 
     def _build_agents(
-        self, scene_id: str, specs: Sequence[AgentSpec], captured_at: datetime
+        self, scene: Scene, specs: Sequence[AgentSpec], captured_at: datetime
     ) -> list[SceneAgent]:
         agents: list[SceneAgent] = []
         seen_names: set[str] = set()
@@ -268,30 +311,33 @@ class SceneService:
             agents.append(
                 SceneAgent(
                     agent_id=self._agent_id_factory(),
-                    scene_id=scene_id,
+                    scene_id=scene.scene_id,
                     name=resolved_name,
                     order_index=index,
-                    snapshot=self._snapshot(template, captured_at),
+                    snapshot=self._snapshot(template, captured_at, scene.configuration_version, spec.role_profile),
+                    discussion_config=self._participant_config(scene, spec.discussion_config),
                     created_at=captured_at,
                 )
             )
         return agents
 
     @staticmethod
-    def _snapshot(template, captured_at: datetime) -> AgentSnapshot:
-        """把模板五项内容复制为不可变快照（PRD 3.2）。"""
+    def _participant_config(scene: Scene, config):
+        if scene.mode is SceneMode.SIMULATION:
+            if config is not None:
+                raise InvalidInputError("simulation 不接受讨论参与者配置")
+            return None
+        return config or DiscussionParticipantConfig()
 
-        return AgentSnapshot(
-            source_template_id=template.template_id,
-            captured_at=captured_at,
-            **AgentProfileFields(
-                name=template.name,
-                persona=template.persona,
-                speech_style=template.speech_style,
-                initial_goal=template.initial_goal,
-                private_background=template.private_background,
-            ).model_dump(),
-        )
+    @staticmethod
+    def _snapshot(template, captured_at: datetime, configuration_version: int = 1,
+                  role_profile: SceneRoleProfile | None = None) -> AgentSnapshot:
+        if configuration_version == 1 and role_profile is not None:
+            raise InvalidInputError("本场 role_profile 需要 configuration_version=2")
+        profile = (role_profile or SceneRoleProfile()) if configuration_version == 2 else SceneRoleProfile(
+            **template.model_dump(include=set(SceneRoleProfile.model_fields)))
+        return AgentSnapshot(source_template_id=template.template_id, captured_at=captured_at,
+                             name=template.name, **profile.model_dump())
 
     def _require_scene(self, scene_id: str) -> Scene:
         scene = self._scenes.get_scene(scene_id)

@@ -19,15 +19,15 @@ from role_theater.storage.migrator import (
 def test_migrations_are_discovered_in_version_order() -> None:
     migrations = discover_migrations()
 
-    assert [m.version for m in migrations] == [1, 2, 3, 4]
-    assert [m.name for m in migrations] == ["initial", "runtime", "analysis", "scene_scheduler"]
+    assert [m.version for m in migrations] == [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    assert [m.name for m in migrations] == ["initial", "runtime", "analysis", "scene_scheduler", "private_chat", "request_snapshot", "dual_mode", "scene_role_profile", "free_chat"]
     assert all(len(m.checksum) == 64 for m in migrations)
 
 
 def test_migration_applies_once_and_is_idempotent(tmp_path: Path) -> None:
     db = Database(tmp_path / "a.db")
 
-    assert db.migrate() == [1, 2, 3, 4]
+    assert db.migrate() == [1, 2, 3, 4, 5, 6, 7, 8, 9]
     # 重复启动不得重复应用（PRD 5.4：重入幂等的基础）。
     assert db.migrate() == []
     assert db.migrate() == []
@@ -36,8 +36,8 @@ def test_migration_applies_once_and_is_idempotent(tmp_path: Path) -> None:
         rows = conn.execute(
             "SELECT version, name, checksum FROM schema_migrations ORDER BY version"
         ).fetchall()
-    assert [row["version"] for row in rows] == [1, 2, 3, 4]
-    assert [row["name"] for row in rows] == ["initial", "runtime", "analysis", "scene_scheduler"]
+    assert [row["version"] for row in rows] == [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    assert [row["name"] for row in rows] == ["initial", "runtime", "analysis", "scene_scheduler", "private_chat", "request_snapshot", "dual_mode", "scene_role_profile", "free_chat"]
 
 
 def test_modified_migration_is_rejected(database: Database) -> None:

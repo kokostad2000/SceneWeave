@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import sqlite3
+import hashlib
 from collections.abc import Sequence
 from datetime import datetime
 
@@ -23,6 +24,7 @@ from ..contracts import (
     TurnStatus,
     Usage,
 )
+from ..contracts.enums import MessageVisibility
 from .database import Database
 
 #: 派发后、结果落盘前的在途状态（存储层概念，不属于对外 TurnStatus 枚举）。
@@ -37,7 +39,7 @@ _TURN_COLUMNS = (
     " reply_to_message_id, requested_speaker_id, message_id, input_cursor_seq,"
     " prompt_template_id, requested_model, returned_model, provider_request_id,"
     " input_tokens, output_tokens, cached_tokens, usage_unknown, failure_kind,"
-    " failure_detail, sent, budget_consumed, latency_ms, created_at, finished_at"
+    " failure_detail, sent, budget_consumed, latency_ms, created_at, finished_at, recipient_id, request_snapshot_json"
 )
 
 
@@ -69,6 +71,10 @@ def _to_message(row: sqlite3.Row) -> Message:
         text=row["text"],
         reply_to_message_id=row["reply_to_message_id"],
         requested_speaker_id=row["requested_speaker_id"],
+        visibility=row["visibility"],
+        recipient_id=row["recipient_id"],
+        conversation_id=row["conversation_id"],
+        schema_version=row["schema_version"],
         created_at=datetime.fromisoformat(row["created_at"]),
     )
 
@@ -114,8 +120,11 @@ class RuntimeRepository:
         pause_reason: PauseReason | None = None,
         started_at: datetime | None = None,
         ended_at: datetime | None = None,
+        reset_silence: bool = False,
     ) -> None:
         with self._db.transaction() as conn:
+            if reset_silence:
+                conn.execute("UPDATE role_cursors SET last_success_action = NULL WHERE scene_id = ?", (scene_id,))
             conn.execute(
                 "UPDATE scenes SET status = ?, pause_reason = ?,"
                 " started_at = COALESCE(?, started_at), ended_at = COALESCE(?, ended_at)"
@@ -194,8 +203,8 @@ class RuntimeRepository:
     def _insert_message(conn: sqlite3.Connection, message: Message) -> None:
         conn.execute(
             "INSERT INTO messages (message_id, scene_id, seq, actor_id, text,"
-            " reply_to_message_id, requested_speaker_id, created_at)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            " reply_to_message_id, requested_speaker_id, created_at, visibility, recipient_id, conversation_id, schema_version)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 message.message_id,
                 message.scene_id,
@@ -205,14 +214,14 @@ class RuntimeRepository:
                 message.reply_to_message_id,
                 message.requested_speaker_id,
                 message.created_at.isoformat(),
+                message.visibility.value, message.recipient_id, message.conversation_id, message.schema_version,
             ),
         )
 
     def list_messages(self, scene_id: str) -> list[Message]:
         with self._db.connection() as conn:
             rows = conn.execute(
-                "SELECT message_id, scene_id, seq, actor_id, text, reply_to_message_id,"
-                " requested_speaker_id, created_at FROM messages"
+                "SELECT * FROM messages"
                 " WHERE scene_id = ? ORDER BY seq ASC",
                 (scene_id,),
             ).fetchall()
@@ -221,12 +230,33 @@ class RuntimeRepository:
     def get_message(self, scene_id: str, message_id: str) -> Message | None:
         with self._db.connection() as conn:
             row = conn.execute(
-                "SELECT message_id, scene_id, seq, actor_id, text, reply_to_message_id,"
-                " requested_speaker_id, created_at FROM messages"
+                "SELECT * FROM messages"
                 " WHERE scene_id = ? AND message_id = ?",
                 (scene_id, message_id),
             ).fetchone()
         return _to_message(row) if row is not None else None
+
+    @staticmethod
+    def conversation_id(scene_id: str, first: str, second: str) -> str:
+        import json
+        key = json.dumps([scene_id, *sorted((first, second))], ensure_ascii=False)
+        return "conv_" + hashlib.sha256(key.encode()).hexdigest()[:32]
+
+    def conversations(self, scene_id: str, *, viewer_id: str | None = None):
+        from ..contracts.api_runtime import ConversationView
+        names = self.scene_agent_names(scene_id)
+        with self._db.connection() as conn:
+            rows = conn.execute(
+                "SELECT conversation_id, actor_id, recipient_id, MAX(seq) AS last_seq, COUNT(*) AS total"
+                " FROM messages WHERE scene_id = ? AND visibility = 'PRIVATE'"
+                " AND (? IS NULL OR actor_id = ? OR recipient_id = ?)"
+                " GROUP BY conversation_id ORDER BY last_seq DESC",
+                (scene_id, viewer_id, viewer_id, viewer_id),
+            ).fetchall()
+        return [ConversationView(conversation_id=r["conversation_id"], scene_id=scene_id,
+            participant_ids=sorted((r["actor_id"], r["recipient_id"])),
+            participant_names=[names[a] for a in sorted((r["actor_id"], r["recipient_id"]))],
+            last_seq=r["last_seq"], message_count=r["total"]) for r in rows]
 
     # --- 行动 ---
 
@@ -242,6 +272,7 @@ class RuntimeRepository:
         prompt_template_id: str,
         created_at: datetime,
         budget_consumed: bool = True,
+        request_snapshot_json: str | None = None,
     ) -> None:
         """写入 ``PENDING`` 行动：同时占用预算并标记在途（tasks/M04.md §3.7 I2）。"""
 
@@ -264,6 +295,8 @@ class RuntimeRepository:
                     1 if budget_consumed else 0,
                 ),
             )
+            if request_snapshot_json is not None:
+                conn.execute("UPDATE scene_turns SET request_snapshot_json = ? WHERE attempt_id = ?", (request_snapshot_json, attempt_id))
             if budget_consumed:
                 self._bump_budget(conn, scene_id, role_requests=1)
 
@@ -386,7 +419,7 @@ class RuntimeRepository:
         draft = response.draft
         if not response.ok or draft is None:
             raise ValueError("成功提交需要有效的行动结果")
-        if (draft.action is ActionType.SPEAK) != (message_id is not None):
+        if (draft.action in (ActionType.SPEAK, ActionType.PRIVATE)) != (message_id is not None):
             raise ValueError("SPEAK 必须有消息 ID，PASS 不得有消息 ID")
 
         with self._db.transaction() as conn:
@@ -399,7 +432,7 @@ class RuntimeRepository:
             if (turn["scene_id"], turn["actor_id"]) != (cursor.scene_id, cursor.agent_id):
                 raise ValueError("行动与角色游标不匹配")
 
-            if draft.action is ActionType.SPEAK:
+            if draft.action in (ActionType.SPEAK, ActionType.PRIVATE):
                 self._insert_message(
                     conn,
                     Message(
@@ -410,6 +443,10 @@ class RuntimeRepository:
                         text=draft.text,
                         reply_to_message_id=draft.reply_to_message_id,
                         requested_speaker_id=draft.requested_speaker_id,
+                        visibility=MessageVisibility.PRIVATE if draft.action is ActionType.PRIVATE else MessageVisibility.PUBLIC,
+                        recipient_id=draft.recipient_id,
+                        conversation_id=self.conversation_id(cursor.scene_id, cursor.agent_id, draft.recipient_id) if draft.recipient_id else None,
+                        schema_version=2,
                         created_at=created_at,
                     ),
                 )
@@ -429,8 +466,16 @@ class RuntimeRepository:
                 sent=response.sent,
                 latency_ms=response.latency_ms,
             )
+            conn.execute("UPDATE scene_turns SET recipient_id = ? WHERE attempt_id = ?", (draft.recipient_id, attempt_id))
             # 兼容已有 RoleCursor 契约中的旧字段；调度不再读取角色个人计数。
-            self._upsert_cursor(conn, cursor.model_copy(update={"consecutive_requested_priority": 0}))
+            next_order = conn.execute(
+                "SELECT COALESCE(MAX(last_success_order), 0) + 1 FROM role_cursors WHERE scene_id = ?",
+                (cursor.scene_id,),
+            ).fetchone()[0]
+            self._upsert_cursor(conn, cursor.model_copy(update={
+                "consecutive_requested_priority": 0, "last_success_order": next_order,
+                "last_success_action": draft.action,
+            }))
             conn.execute(
                 "INSERT INTO scene_scheduler_state (scene_id, consecutive_requested_priority)"
                 " VALUES (?, ?) ON CONFLICT (scene_id) DO UPDATE SET"
@@ -452,7 +497,7 @@ class RuntimeRepository:
         with self._db.connection() as conn:
             rows = conn.execute(
                 f"SELECT {_TURN_COLUMNS} FROM scene_turns WHERE scene_id = ?"
-                " ORDER BY created_at ASC, attempt_id ASC",
+                " ORDER BY created_at ASC, rowid ASC",
                 (scene_id,),
             ).fetchall()
         return [dict(row) for row in rows]
@@ -525,14 +570,16 @@ class RuntimeRepository:
         conn.execute(
             "INSERT INTO role_cursors (scene_id, agent_id, processed_seq,"
             " startup_opportunity_consumed, last_action_at, last_action_status,"
-            " consecutive_requested_priority)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?)"
+            " consecutive_requested_priority, last_success_order, last_success_action)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
             " ON CONFLICT (scene_id, agent_id) DO UPDATE SET"
             " processed_seq = excluded.processed_seq,"
             " startup_opportunity_consumed = excluded.startup_opportunity_consumed,"
             " last_action_at = excluded.last_action_at,"
             " last_action_status = excluded.last_action_status,"
-            " consecutive_requested_priority = excluded.consecutive_requested_priority",
+            " consecutive_requested_priority = excluded.consecutive_requested_priority,"
+            " last_success_order = excluded.last_success_order,"
+            " last_success_action = excluded.last_success_action",
             (
                 cursor.scene_id,
                 cursor.agent_id,
@@ -541,6 +588,8 @@ class RuntimeRepository:
                 cursor.last_action_at.isoformat() if cursor.last_action_at else None,
                 cursor.last_action_status.value if cursor.last_action_status else None,
                 cursor.consecutive_requested_priority,
+                cursor.last_success_order,
+                cursor.last_success_action.value if cursor.last_success_action else None,
             ),
         )
 
@@ -548,7 +597,7 @@ class RuntimeRepository:
         with self._db.connection() as conn:
             rows = conn.execute(
                 "SELECT scene_id, agent_id, processed_seq, startup_opportunity_consumed,"
-                " last_action_at, last_action_status, consecutive_requested_priority"
+                " last_action_at, last_action_status, consecutive_requested_priority, last_success_order, last_success_action"
                 " FROM role_cursors WHERE scene_id = ? ORDER BY agent_id",
                 (scene_id,),
             ).fetchall()
@@ -563,6 +612,8 @@ class RuntimeRepository:
                     TurnStatus(row["last_action_status"]) if row["last_action_status"] else None
                 ),
                 consecutive_requested_priority=int(row["consecutive_requested_priority"]),
+                last_success_order=int(row["last_success_order"]),
+                last_success_action=ActionType(row["last_success_action"]) if row["last_success_action"] else None,
             )
             for row in rows
         ]
@@ -585,7 +636,8 @@ class RuntimeRepository:
         return dict(row) if row is not None else None
 
     def store_command(
-        self, *, request_id: str, scene_id: str, command: str, response_json: str, created_at: datetime
+        self, *, request_id: str, scene_id: str, command: str, response_json: str, created_at: datetime,
+        complete: bool = False,
     ) -> None:
         with self._db.transaction() as conn:
             conn.execute(
@@ -594,6 +646,11 @@ class RuntimeRepository:
                 " ON CONFLICT (request_id) DO NOTHING",
                 (request_id, scene_id, command, response_json, created_at.isoformat()),
             )
+            if complete:
+                conn.execute(
+                    "UPDATE scene_commands SET response_json = ? WHERE request_id = ? AND scene_id = ? AND command = ?",
+                    (response_json, request_id, scene_id, command),
+                )
 
     # --- 预算 ---
 
@@ -689,6 +746,7 @@ class RuntimeRepository:
                             "text": turn["text"] or "",
                             "reply_to_message_id": turn["reply_to_message_id"],
                             "requested_speaker_id": turn["requested_speaker_id"],
+                            "recipient_id": turn["recipient_id"],
                         }
                     ),
                     message_id=turn["message_id"],

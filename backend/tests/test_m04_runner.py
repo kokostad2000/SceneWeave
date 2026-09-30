@@ -77,6 +77,8 @@ def build_env(
     max_role_requests: int | None = None,
     prompt_char_limit: int | None = None,
     default_draft: ActionDraft | None = None,
+    mode="simulation",
+    chat_policy_version=1,
 ) -> Env:
     ids = Counter("id")
     template_service = TemplateService(
@@ -126,9 +128,12 @@ def build_env(
 
     detail = scene_service.create(
         title="测试场景",
+        mode=mode,
+        mode_config=__import__("role_theater.contracts", fromlist=["DiscussionConfig"]).DiscussionConfig(topic="晚上，三个室友在客厅相遇。") if mode == "discussion" else None,
         background="晚上，三个室友在客厅相遇。",
         agent_specs=specs,
         max_role_requests=max_role_requests,
+        chat_policy_version=chat_policy_version,
     )
     return Env(
         database=database,
@@ -665,7 +670,7 @@ async def test_model_params_and_template_id_are_recorded(database: Database) -> 
     await env.runner.run_command(env.scene_id, request_id="s1", command=ControlCommandType.STEP)
 
     turn = env.runtime.list_turns(env.scene_id)[0]
-    assert turn["prompt_template_id"] == "role_action@m02.1"
+    assert turn["prompt_template_id"] == "role_action@simulation.p1.1"
     assert turn["requested_model"] == ModelParams().model
     assert turn["returned_model"] == ModelParams().model
 
@@ -980,32 +985,46 @@ def test_old_database_upgrade_preserves_records_and_resets_unreliable_role_count
     with monkeypatch.context() as patch:
         patch.setattr(migrator, "discover_migrations", lambda: all_migrations[:3])
         assert old.migrate() == [1, 2, 3]
-    env = build_env(old)
+    seed = Database(tmp_path / "seed-current.db")
+    seed.migrate()
+    env = build_env(seed)
+    with seed.connection() as source, old.transaction() as target:
+        for table in ["agent_templates", "scenes", "scene_agents"]:
+            columns = [row["name"] for row in target.execute(f"PRAGMA table_info({table})")]
+            names = ",".join(columns)
+            for row in source.execute(f"SELECT {names} FROM {table}"):
+                target.execute(f"INSERT INTO {table} ({names}) VALUES ({','.join('?' for _ in columns)})", tuple(row))
+    env.runtime = RuntimeRepository(old)
     env.runtime.insert_turn(
         action_id="old-action", turn_id="old-turn", attempt_id="old-attempt",
         scene_id=env.scene_id, actor_id=env.agent_ids[0], input_cursor_seq=0,
         prompt_template_id="role_action@m02.1", created_at=CLOCK,
     )
-    env.runtime.insert_message(Message(
-        message_id="old-message", scene_id=env.scene_id, seq=env.runtime.next_seq(env.scene_id),
-        actor_id=env.agent_ids[0], text="升级前的消息。", created_at=CLOCK,
-    ))
+    seq = env.runtime.next_seq(env.scene_id)
+    with old.transaction() as conn:
+        conn.execute("INSERT INTO messages (message_id, scene_id, seq, actor_id, text, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            ("old-message", env.scene_id, seq, env.agent_ids[0], "升级前的消息。", CLOCK.isoformat()))
     env.runtime.finish_turn(
         "old-attempt", status=TurnStatus.SUCCEEDED, finished_at=CLOCK,
         action=ActionType.SPEAK.value, text="升级前的消息。", message_id="old-message",
     )
-    env.runtime.upsert_cursor(RoleCursor(
-        scene_id=env.scene_id, agent_id=env.agent_ids[0], processed_seq=1,
-        startup_opportunity_consumed=True, consecutive_requested_priority=2,
-    ))
-    messages, turns, budget = (
-        env.runtime.list_messages(env.scene_id), env.runtime.list_turns(env.scene_id),
-        env.runtime.budget_used(env.scene_id),
-    )
-    assert old.migrate() == [4]
+    # Seed the historical 003 schema with its original columns.
+    with old.transaction() as conn:
+        conn.execute("INSERT INTO role_cursors (scene_id,agent_id,processed_seq,startup_opportunity_consumed,consecutive_requested_priority) VALUES (?,?,1,1,2)",
+                     (env.scene_id, env.agent_ids[0]))
+    with old.connection() as conn:
+        messages = [dict(r) for r in conn.execute("SELECT * FROM messages")]
+        turns = [dict(r) for r in conn.execute("SELECT * FROM scene_turns")]
+    budget = env.runtime.budget_used(env.scene_id)
+    assert old.migrate() == [4, 5, 6, 7, 8, 9]
     assert old.migrate() == []
-    assert env.runtime.list_messages(env.scene_id) == messages
-    assert env.runtime.list_turns(env.scene_id) == turns
+    with old.connection() as conn:
+        for table, expected in [("messages", messages), ("scene_turns", turns)]:
+            actual = [dict(r) for r in conn.execute(f"SELECT * FROM {table}")]
+            assert [{k: r[k] for k in expected[0]} for r in actual] == expected
+    assert env.runtime.list_messages(env.scene_id)[0].visibility == "PUBLIC"
+    assert env.runtime.action_records(env.scene_id)[0].draft.recipient_id is None
+    assert env.runtime.list_turns(env.scene_id)[0]["prompt_template_id"] == "role_action@m02.1"
     assert env.runtime.budget_used(env.scene_id) == budget
     assert env.runtime.requested_priority_streak(env.scene_id) == 0
     cursor = env.runtime.get_cursor(env.scene_id, env.agent_ids[0])

@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from .enums import (
     ActionType,
+    MessageVisibility,
     AnalysisStatus,
     ControlCommandType,
     EventStatus,
@@ -20,6 +21,7 @@ from .enums import (
     PauseReason,
     RunState,
     SchedulerReason,
+    SceneMode,
     TurnStatus,
 )
 from .limits import (
@@ -55,7 +57,9 @@ from .limits import (
 
 #: 全部契约枚举。新增枚举必须登记在此，确保自检摘要与前端类型同步。
 CONTRACT_ENUMS: dict[str, type] = {
+    "SceneMode": SceneMode,
     "ActionType": ActionType,
+    "MessageVisibility": MessageVisibility,
     "EventVisibility": EventVisibility,
     "EventStatus": EventStatus,
     "RunState": RunState,
@@ -70,6 +74,9 @@ CONTRACT_ENUMS: dict[str, type] = {
 #: 按 Unicode 码点计数的长度上限。
 CONTRACT_LIMIT_CODEPOINTS: dict[str, int] = {
     "agent_name": MAX_AGENT_NAME_CODEPOINTS,
+    "public_profile": MAX_PERSONA_CODEPOINTS,
+    "discussion_focus": MAX_INITIAL_GOAL_CODEPOINTS,
+    "initial_position": MAX_PRIVATE_BACKGROUND_CODEPOINTS,
     "persona": MAX_PERSONA_CODEPOINTS,
     "speech_style": MAX_SPEECH_STYLE_CODEPOINTS,
     "initial_goal": MAX_INITIAL_GOAL_CODEPOINTS,

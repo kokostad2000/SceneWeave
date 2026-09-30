@@ -10,7 +10,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from .enums import ControlCommandType, PauseReason, RunState, SchedulerReason, TurnStatus
+from .enums import ActionType, ControlCommandType, PauseReason, RunState, SchedulerReason, TurnStatus
 from .event import Event, EventSubmission
 from .ids import AgentId, EventId, RequestId, SceneId
 
@@ -54,7 +54,7 @@ class CommandAck(BaseModel):
 
 
 class RoleCursor(BaseModel):
-    """每个角色的已处理位置。只有成功的 SPEAK／PASS 才推进（PRD 5.1）。"""
+    """每个角色的已处理位置。只有成功的 SPEAK／PRIVATE／PASS 才推进（PRD 5.1）。"""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -65,6 +65,8 @@ class RoleCursor(BaseModel):
     last_action_turn_id: str | None = None
     last_action_status: TurnStatus | None = None
     last_action_at: datetime | None = None
+    last_success_order: int = Field(default=0, ge=0)
+    last_success_action: ActionType | None = None
     consecutive_requested_priority: int = Field(default=0, ge=0, le=2)
 
 

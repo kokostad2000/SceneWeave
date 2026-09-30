@@ -25,23 +25,28 @@ import {
   type SceneDetailView,
   type PresetSummaryView,
   type SceneSummaryView,
+  type SceneMode,
+  type DiscussionParticipantConfig,
+  type SceneRoleProfile,
 } from '../api/client'
-import { budgets, codepointLimits } from '../api/contracts'
+import { budgets, codepointLimits, agentCountRange } from '../api/contracts'
 import { trimmedCodepointLength } from '../lib/codepoints'
+import { modeLabel } from '../lib/modes'
+import { RoleProfileEditor, emptyRoleProfile, roleProfileOverLimit } from '../components/RoleProfileEditor'
 
-const EMPTY_TEMPLATE = {
-  name: '',
-  persona: '',
-  speech_style: '',
-  initial_goal: '',
-  private_background: '',
-}
+const EMPTY_TEMPLATE = { name: '' }
 
 export interface ConfigViewProps {
   readonly onOpenScene: (sceneId: string) => void
 }
 
 export function ConfigView({ onOpenScene }: ConfigViewProps) {
+  const [mode, setMode] = useState<SceneMode>('simulation')
+  const [publicInformation, setPublicInformation] = useState('')
+  const [topic, setTopic] = useState('')
+  const [materials, setMaterials] = useState('')
+  const [participants, setParticipants] = useState<Record<string, DiscussionParticipantConfig>>({})
+  const [profiles, setProfiles] = useState<Record<string, SceneRoleProfile>>({})
   const [templates, setTemplates] = useState<AgentTemplate[]>([])
   const [scenes, setScenes] = useState<SceneSummaryView[]>([])
   const [presets, setPresets] = useState<PresetSummaryView[]>([])
@@ -91,6 +96,19 @@ export function ConfigView({ onOpenScene }: ConfigViewProps) {
 
   return (
     <div className="view view--config">
+      <section className="card" aria-label="选择观察模式">
+        <h2>想观察什么？</h2>
+        <div className="mode-choices">
+          <button type="button" aria-pressed={mode === 'simulation'} onClick={() => { setMode('simulation'); setCurrent(null) }}>
+            <b>角色互动沙盒</b><span>创建情境，观察角色的信息、交流与行为如何发展</span>
+          </button>
+          <button type="button" aria-pressed={mode === 'discussion'} onClick={() => { setMode('discussion'); setCurrent(null) }}>
+            <b>议题聊天室</b><span>给出议题，观察观点、论据、分歧与共识如何演变</span>
+          </button>
+        </div>
+        <p className="hint">当前创建：{modeLabel[mode]}。创建后模式固定，两种模式共用交流与运行控制。</p>
+      </section>
+      {mode === 'simulation' ? (
       <section className="card">
         <h2>预置场景</h2>
         {presets.map((preset) => (
@@ -115,9 +133,11 @@ export function ConfigView({ onOpenScene }: ConfigViewProps) {
           </div>
         ))}
       </section>
+      ) : null}
 
       <section className="card">
-        <h2>角色模板</h2>
+        <h2>人物目录</h2>
+        <p className="hint">选择人物只复用名称；公开身份、人设、目标与背景在本场填写。旧版设定保留供历史兼容，不自动带入新场景。</p>
         <ul className="template-list">
           {templates.map((template) => (
             <li key={template.template_id} className="row">
@@ -127,13 +147,7 @@ export function ConfigView({ onOpenScene }: ConfigViewProps) {
                   type="button"
                   onClick={() => {
                     setEditingId(template.template_id)
-                    setDraft({
-                      name: template.name,
-                      persona: template.persona,
-                      speech_style: template.speech_style,
-                      initial_goal: template.initial_goal,
-                      private_background: template.private_background,
-                    })
+                    setDraft({ name: template.name })
                   }}
                 >
                   编辑
@@ -166,18 +180,14 @@ export function ConfigView({ onOpenScene }: ConfigViewProps) {
               </span>
             </li>
           ))}
-          {templates.length === 0 ? <li className="hint">还没有模板，可在下方新建或直接用预置场景。</li> : null}
+          {templates.length === 0 ? <li className="hint">还没有人物，可在下方新建或使用预置场景。</li> : null}
         </ul>
 
-        <h3>{editingId ? "编辑模板" : "新建模板"}</h3>
+        <h3>{editingId ? "编辑人物名称" : "新建人物"}</h3>
         <div className="grid">
           {(
             [
               ['name', '名称', codepointLimits.agent_name],
-              ['persona', '人物设定', codepointLimits.persona],
-              ['speech_style', '表达习惯', codepointLimits.speech_style],
-              ['initial_goal', '初始目标', codepointLimits.initial_goal],
-              ['private_background', '私有背景', codepointLimits.private_background],
             ] as const
           ).map(([key, label, limit]) => (
             <label key={key} className="field">
@@ -193,6 +203,7 @@ export function ConfigView({ onOpenScene }: ConfigViewProps) {
             </label>
           ))}
         </div>
+        <p className="hint">人物目录不预填行为设定；所有本场资料可留空。</p>
         <div className="row">
           <span>
             <button
@@ -202,18 +213,18 @@ export function ConfigView({ onOpenScene }: ConfigViewProps) {
                 guard(async () => {
                   if (editingId) {
                     const updated = await updateTemplate(editingId, draft)
-                    setMessage(`已更新模板：${updated.name}`)
+                    setMessage(`已更新人物：${updated.name}`)
                     setEditingId(null)
                   } else {
                     const created = await createTemplate(draft)
-                    setMessage(`已创建模板：${created.name}`)
+                    setMessage(`已创建人物：${created.name}`)
                   }
                   setDraft({ ...EMPTY_TEMPLATE })
                   await refresh()
                 })
               }
             >
-              {editingId ? '保存修改' : '创建模板'}
+              {editingId ? '保存修改' : '创建人物'}
             </button>
             {editingId ? (
               <button
@@ -231,26 +242,28 @@ export function ConfigView({ onOpenScene }: ConfigViewProps) {
       </section>
 
       <section className="card">
-        <h2>创建本场会话</h2>
-        <label className="field">
-          <span>场景标题</span>
-          <input aria-label="场景标题" value={title} onChange={(event) => setTitle(event.target.value)} />
+        <h2>创建本场会话 · {modeLabel[mode]}</h2>
+        <label className="field"><span>场景标题</span>
+          <input aria-label="场景标题" value={title} onChange={e => setTitle(e.target.value)} />
         </label>
-        <label className="field">
-          <span>
-            场景背景（{trimmedCodepointLength(background)}／{codepointLimits.scene_background} 码点）
-          </span>
-          <textarea
-            aria-label="场景背景"
-            value={background}
-            onChange={(event) => setBackground(event.target.value)}
-          />
-        </label>
+        {mode === 'simulation' ? <>
+          <label className="field"><span>场景背景（{trimmedCodepointLength(background)}／{codepointLimits.scene_background} 码点）</span>
+            <textarea aria-label="场景背景" value={background} onChange={e => setBackground(e.target.value)} />
+          </label>
+          <label className="field"><span>公共信息（全场公开）</span>
+            <textarea aria-label="公共信息" value={publicInformation} onChange={e => setPublicInformation(e.target.value)} />
+          </label>
+        </> : <>
+          <label className="field"><span>议题（必填，全场公开）</span><textarea aria-label="议题" value={topic} onChange={e => setTopic(e.target.value)} /></label>
+          <label className="field"><span>背景／材料（可空，全场公开）</span><textarea aria-label="背景／材料" value={materials} onChange={e => setMaterials(e.target.value)} /></label>
+        </>}
+        <p className="hint">公共场景输入合计最多 {codepointLimits.scene_background} 码点（含字段间换行）。</p>
 
         <fieldset>
           <legend>选择本场角色（2～8 名，当前 {selectedTemplates.length} 名）</legend>
           {templates.map((template) => (
-            <label key={template.template_id} className="row">
+            <div key={template.template_id}>
+            <label className="row">
               <span>
                 <input
                   type="checkbox"
@@ -264,8 +277,23 @@ export function ConfigView({ onOpenScene }: ConfigViewProps) {
                   }
                 />{' '}
                 {template.name}
+                <small>仅复用人物名称</small>
               </span>
             </label>
+            {selectedTemplates.includes(template.template_id) ? <RoleProfileEditor name={template.name}
+              value={profiles[template.template_id] ?? emptyRoleProfile()}
+              onChange={value => setProfiles(prev => ({ ...prev, [template.template_id]: value }))} /> : null}
+            {mode === 'discussion' && selectedTemplates.includes(template.template_id) ? <div className="grid participant-fields">
+              <label className="field"><span>关注点（可空，仅 {template.name} 本人可见）</span>
+                <textarea aria-label={`${template.name}的讨论关注点`} value={participants[template.template_id]?.focus ?? ''}
+                  onChange={e => setParticipants(prev => ({ ...prev, [template.template_id]: { ...prev[template.template_id], focus: e.target.value } }))} />
+              </label>
+              <label className="field"><span>初始观点（可空、可调整，仅 {template.name} 本人可见）</span>
+                <textarea aria-label={`${template.name}的初始观点`} value={participants[template.template_id]?.initial_position ?? ''}
+                  onChange={e => setParticipants(prev => ({ ...prev, [template.template_id]: { focus: prev[template.template_id]?.focus ?? "", initial_position: e.target.value || null } }))} />
+              </label>
+            </div> : null}
+            </div>
           ))}
         </fieldset>
 
@@ -294,14 +322,27 @@ export function ConfigView({ onOpenScene }: ConfigViewProps) {
           type="button"
           onClick={() =>
             guard(async () => {
+              const publicText = (mode === 'simulation' ? [background, publicInformation] : [topic, materials]).map(v => v.trim()).filter(Boolean).join('\n')
+              if (!title.trim()) throw new Error('场景标题不能为空')
+              if (mode === 'discussion' && !topic.trim()) throw new Error('议题不能为空')
+              if (overLimit(publicText, codepointLimits.scene_background)) throw new Error('公共场景输入超过码点上限')
+              if (selectedTemplates.length < agentCountRange.min! || selectedTemplates.length > agentCountRange.max!) throw new Error('请选择 2～8 名角色')
+              if (mode === 'discussion' && selectedTemplates.some(id => overLimit(participants[id]?.focus ?? '', codepointLimits.discussion_focus) || overLimit(participants[id]?.initial_position ?? '', codepointLimits.initial_position))) throw new Error('讨论关注点或初始观点超过码点上限')
+              if (selectedTemplates.some(id => roleProfileOverLimit(profiles[id] ?? emptyRoleProfile()))) throw new Error('本场设定超过码点上限')
               const detail = await createScene({
+                configuration_version: 2,
+                chat_policy_version: 2,
                 title,
-                background,
-                agents: selectedTemplates.map((templateId) => ({ template_id: templateId })),
+                background: publicText,
+                mode,
+                mode_config: mode === 'simulation' ? { situation: background, public_information: publicInformation } : { topic, materials },
+                agents: selectedTemplates.map((templateId) => ({ template_id: templateId, role_profile: profiles[templateId] ?? emptyRoleProfile(),
+                  ...(mode === 'discussion' ? { discussion_config: participants[templateId] ?? { focus: '', initial_position: null } } : {}) })),
                 max_role_requests: Number(maxRoleRequests),
                 max_analysis_requests: Number(maxAnalysisRequests),
               })
               setCurrent(detail)
+              onOpenScene(detail.scene.scene_id)
               setMessage(`已创建会话：${detail.scene.title}（${detail.agents.length} 名角色）`)
               await refresh()
             })
@@ -317,7 +358,7 @@ export function ConfigView({ onOpenScene }: ConfigViewProps) {
           <h2>本场角色（{current.scene.title}）</h2>
           <p className="hint">
             模板快照已冻结：之后修改模板不会影响本场。锁定状态：
-            {current.locked ? '已锁定' : '未锁定'}
+            {current.locked ? '已锁定' : '未锁定'} · {(current.scene.configuration_version ?? 1) === 2 ? '本场独立设定' : '旧版模板快照'}
           </p>
           <ul>
             {current.agents.map((agent) => (

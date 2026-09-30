@@ -419,3 +419,20 @@ def test_empty_scene_has_no_candidate() -> None:
 
     assert outcome.actor_id is None
     assert outcome.pause_reason is PauseReason.NO_NEW_INFORMATION
+
+
+def test_pc_private_shared_priority_and_silence_consumption():
+    from dataclasses import replace
+    from role_theater.contracts.enums import MessageVisibility
+    private = replace(_message(5, "agt-an", "安然"), message_visibility=MessageVisibility.PRIVATE, recipient_id="agt-xu")
+    consumed = tuple(_cursor(a.agent_id, processed_seq=0, last=NOW) for a in AGENTS)
+    state = _state((private,), consumed)
+    assert [x.agent.agent_id for x in Scheduler().candidates(state)] == ["agt-xu"]
+    assert Scheduler().select(state).reason is SchedulerReason.REQUESTED_SPEAKER_PRIORITY
+    passed = tuple(_cursor(a.agent_id, processed_seq=5, last=NOW) for a in AGENTS)
+    assert Scheduler().select(_state((private,), passed)).pause_reason is PauseReason.NO_NEW_INFORMATION
+    # 三人仍有启动资格；两次公私共用优先后最久未行动第三人得到轮转。
+    cursors = (_cursor("agt-an", processed_seq=0, startup_consumed=False, last=NOW),
+               _cursor("agt-xu", processed_seq=0, startup_consumed=False, last=NOW),
+               _cursor("agt-ch", processed_seq=0, startup_consumed=False))
+    assert Scheduler().select(_state((private,), cursors, priority_used=2)).actor_id == "agt-ch"

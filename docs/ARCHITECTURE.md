@@ -1,6 +1,6 @@
 # SceneWeave 架构说明（首版）
 
-状态：M00 建立。适用范围**仅限首版**（PRD 第 1.2 节“本期交付”）。本文件不设计首版之外的功能；扩展位置只在文末登记。
+状态：M00 建立，2026-09-29 同步双模式 P1。适用范围为首版及 PRD 第 1.4 节冻结增量；扩展位置只在文末登记。
 
 需求唯一来源是 `PRD.md`。本文件只说明首版的目录职责、核心数据结构、接口边界与运行状态。
 
@@ -83,9 +83,9 @@ SQLite（事实来源：模板、快照、事件、行动、请求结果、分�
 
 | 结构 | 关键字段 | 说明 |
 |---|---|---|
-| `ActionDraft` | `action`, `text`, `reply_to_message_id`, `requested_speaker_id` | **模型只能返回这四个字段**；`actor_id`／`scene_id`／消息 ID／时间由服务端添加 |
-| `ActionType` | `SPEAK`, `PASS` | `SPEAK`：`text` 1～200 码点；`PASS`：`text` 与两个引用字段都必须为空 |
-| `ActionRecord` | `action_id`, `turn_id`, `attempt_id`, `scene_id`, `actor_id`, `status`, `draft`, `message_id`, `input_cursor_seq`, `created_at` | 一次调用的落盘结果；**只有成功 SPEAK／PASS 才推进该角色已处理位置**，失败不推进 |
+| `ActionDraft` | `action`, `text`, `reply_to_message_id`, `requested_speaker_id`, `recipient_id` | **新提示词规定这五个字段**；`actor_id`／`scene_id`／消息 ID／时间由服务端添加 |
+| `ActionType` | `SPEAK`, `PRIVATE`, `PASS` | `SPEAK`／`PRIVATE`：策略2 `text` 1～1000码点，策略1 1～200码点；`PASS`：`text` 与三个对象／引用字段都必须为空 |
+| `ActionRecord` | `action_id`, `turn_id`, `attempt_id`, `scene_id`, `actor_id`, `status`, `draft`, `message_id`, `input_cursor_seq`, `created_at` | 一次调用的落盘结果；**只有成功 SPEAK／PRIVATE／PASS 才推进该角色已处理位置**，失败不推进 |
 | `Message` | `message_id`, `scene_id`, `seq`, `actor_id`, `text`, `reply_to_message_id`, `requested_speaker_id`, `created_at` | 公开聊天记录；`PASS` 不形成气泡但保存行动结果 |
 
 引用校验：`reply_to_message_id` 为空，或指向本场**已提交**且该角色**可见**的公开发言；`requested_speaker_id` 为空，或为本场另一名有效角色。
@@ -142,7 +142,7 @@ class AnalysisPort(Protocol):
 
 ### 3.6 运行参数（首版初值，非性能承诺）
 
-`model=deepseek-flash`、`stream=false`、`response_format=json_object`、显式关闭思考、不发送 tools；`max_output_tokens=1024`；请求总期限 90 秒；SDK 自动重试 **0**；`max_prompt_chars=32000`（保守字符限制，超过则暂停，不静默截断）。思考模式开启时温度参数无效——**不能用较低 temperature 推断思考已关闭**。不向公共 API 发送 `reasoning_effort=100`。
+`model=deepseek-flash`、`stream=false`、`response_format=json_object`、显式关闭思考、不发送 tools；新场景策略2 `max_output_tokens=4096`、旧策略1为1024；请求总期限 90 秒；SDK 自动重试 **0**；`max_prompt_chars=32000`（保守字符限制，超过则暂停，不静默截断）。思考模式开启时温度参数无效——**不能用较低 temperature 推断思考已关闭**。不向公共 API 发送 `reasoning_effort=100`。
 
 真实角色调用与行为分析共用单次 **10,000,000 tokens** 上限：发送前用文本消息的
 UTF-8 字节数、4,096 token 包装余量及最大输出参数计算保守上界，超限不发送；
@@ -195,7 +195,7 @@ READY ──start──▶ RUNNING ──pause──▶ PAUSING ──▶ PAUSED
 
 - `READY` 待开始、`RUNNING`、`PAUSING`、`STOPPING`、`PAUSED`、`ENDED`。**没有**其他状态。
 - 暂停／结束在**当前调用边界**生效；当前调用按超时配置有界收尾，不新建下一次调用。
-- `PauseReason` 必须区分：`NO_NEW_INFORMATION`（候选为空，不是会话结束）、`MANUAL`、`PROVIDER_ERROR`、`CONTEXT_LIMIT`、`PROCESS_INTERRUPT`。达到角色调用上限 → `ENDED`。
+- `PauseReason` 必须区分：`NO_NEW_INFORMATION`（旧策略候选为空）、`COLLECTIVE_SILENCE`（新策略全员成功PASS且无待处理可见信息）、`MANUAL`、`PROVIDER_ERROR`、`CONTEXT_LIMIT`、`PROCESS_INTERRUPT`。达到角色调用上限 → `ENDED`。
 - `ENDED` 不可恢复运行，但允许查看历史与预算内的只读分析；重新开始创建**新会话**。
 - 页面刷新只恢复视图，不重启任务；浏览器断开不自动停止后台场景，预算继续有效。
 - 进程重启后把遗留在途请求标记 `UNKNOWN` 并暂停会话，**不自动恢复付费请求**；恢复边界先处理尚未生效的已接受事件，再允许新的角色请求。
@@ -205,7 +205,7 @@ READY ──start──▶ RUNNING ──pause──▶ PAUSING ──▶ PAUSED
 ### 4.1 行动事务与调度计数（2026-09-28 修复）
 
 - 派发前的短事务同时写入 `PENDING` 行动与角色预算占用；任何写入失败均回滚，随后才允许进入模型调用。
-- 模型返回后的成功短事务同时提交 `seq` 分配、可选公开消息、行动结果、角色游标与场景点名计数；`PASS` 也在同一边界提交。提交后再生效待处理事件并通知 SSE，网络等待期间不持有写事务。
+- 模型返回后的成功短事务同时提交 `seq` 分配、可选公开或私聊消息、行动结果、角色游标与场景点名计数；`PASS` 也在同一边界提交。提交后再生效待处理事件并通知 SSE，网络等待期间不持有写事务。
 - 未派发失败的行动结果与预算退款同事务提交；已发送的失败或结果不明继续占用预算，重启不自动重发。
 - 连续点名次数保存在迁移 `004_scene_scheduler.sql` 的 `scene_scheduler_state`，由 M04 传给纯调度器；成功点名行动加一（最多 2），成功普通轮转清零，失败不推进，重启保留。旧 `RoleCursor.consecutive_requested_priority` 字段为接口兼容保留，当前调度不再读取它。
 - 升级时历史连续次数因缺少调度原因无法准确重建，统一从 0 起算并清零旧角色计数，原有消息、行动、游标位置与预算保留。
@@ -254,7 +254,7 @@ M04 追加的**只读观察端点**（M05 为显示角色执行状态而请求�
 
 错误语义统一为 M00 的 `ApiError`：`not_found`→404、`duplicate_name`／`agent_count_out_of_range`／`scene_locked`／`unknown_template`→409、`validation_error`→422。这些接口**不调用模型**（PRD 3.1：创建配置、切换视图和历史回看不调用模型）。
 
-### 5.3 后续模块的边界（已声明，尚未实现）
+### 5.3 已实现的运行与分析接口
 
 | 方法 | 路径 | 模块 |
 |---|---|---|
@@ -280,4 +280,55 @@ M05 落地情况：配置页 / 聊天页 / 历史页（聊天页只读模式）+
 
 ## 7. 首版之外的扩展位置（只登记，不实现）
 
-角色中途加入／退出、长期记忆与 RAG、角色私聊、多场景并行、多用户鉴权、多 worker 并发、地图物品与移动、语音图片、联网与工具执行、通用插件系统。以上均**不设占位伪功能**；相应代码位置在上述目录内预留清晰边界即可。
+角色中途加入／退出、长期记忆与 RAG、多人私聊、多场景并行、多用户鉴权、多 worker 并发、地图物品与移动、语音图片、联网与工具执行、通用插件系统。以上均**不设占位伪功能**；相应代码位置在上述目录内预留清晰边界即可。
+
+
+## 8. 一对一私聊增量（pc.1，2026-09-28）
+
+- 行动协议新增 `PRIVATE` 与 `recipient_id`，以回复引用有无区分主动私聊／回复私聊。`SPEAK` 只引用可见公开消息；`PRIVATE` 只回复本次快照中该收件人发给自己的消息。`ReferenceScope` 分开保存公开集合与本人收到的私聊及发送者，编号别名绑定当次请求。旧 SPEAK／PASS 缺少 recipient_id 读取为 null，PRIVATE 缺少收件人失败。
+- 消息增加 `visibility`、`recipient_id`、`conversation_id`、`schema_version`；005 迁移将旧消息显式归 PUBLIC，保留原版本 1，新消息版本 2。人工事件结构与版本 1 不变。会话由场景 ID 与排序后的角色对稳定派生，从成功私聊消息聚合，因此没有未发消息的空会话；双向同项，按最新提交排序。
+- 006 在 scene_turns 增加 request_snapshot_json。新请求的完整提示、参数、模板、局部引用映射与 PENDING／预算预留同事务保存，不含凭证。旧记录保持空值，不虚构旧提示快照。新结果中的消息、行动、游标、场景优先计数仍同事务提交，提交后通知 SSE。
+- ContextBuilder 保留该角色完整可见公私历史，显示发送方向与来源；输出编号为可见集合局部编号，内部游标继续使用全局 seq。只有收件人得到新的外部信息；发送者不自唤醒，第三方没有私聊候选机会。公共点名和私聊收件人共用场景级两次连续优先上限。PASS 只消费本次机会，无剧情消息、无拒绝通知、无他人唤醒；新信息到达后仍能回复旧私聊。
+- `GET /api/scenes/{id}/conversations` 支持 viewer_id、offset、limit；角色只返回本人会话。timeline 支持 viewer_id、conversation_id、offset、limit，先按权限筛选再分页，未知／无权会话 404。viewpoint 返回同一可见集合、局部编号、本人行动；events 的角色查询同样使用局部编号。agents/status 的角色查询隐藏其他角色行动、私聊对象和私聊计数。
+- SSE 保持观察者全局提交序号，角色展示不连接或混入该流，而读取后端过滤结果。前端菜单为公共频道／私聊二级项／全场时间线，角色模式显示本人可见集合。视角切换清理旧数据并丢弃旧请求结果；sessionStorage 仅保存页面、场景、角色和频道 ID，刷新恢复视图而不请求模型。历史只读。生成状态与最近成功行动分开显示，失败不伪装为沉默。
+- 分析仍只接收公开材料。前端不可选私聊；后端遇到私聊 ID 或公私混选整体 BLOCKED，provider_attempts=0。公开转述只作为转述者的新消息，不沿原私聊链接补材料。原 M06 Q1／Q2 缺陷继续保留。
+
+契约版本为 pc.1，角色提示模板为 role_action@pc.1；需配套升级前后端。升级先使用 SQLite 一致备份，在副本验证 005／006 后再切换；回退使用升级前数据库与旧应用，不让旧程序读取新私聊库。详细命令与未验证项见 `docs/RELEASE.md` 和 `state/reports/M07.md`。
+
+
+2026-09-29 M05 布局补充：消息区域使用随视口限定高度的独立滚动容器，公共／私聊／全场共用；标题与场景控制位于容器外。频道或角色切换重建滚动容器，从顶部开始，不删除或截断记录。会话菜单也限制最大高度并独立滚动；消息区可键盘聚焦，溢出滚动不传播到整页。
+
+## 双模式 P1（2026-09-29）
+
+Scene.mode 为 simulation／discussion；mode_config 是经过后端判别校验的 SimulationConfig／DiscussionConfig，旧 background 入站投影为 SimulationConfig。mode 创建后固定，background 是裁剪后以换行连接的公共信息投影，总计仍≤2000码点。角色模板和本场 snapshot 保存显式 public_profile；discussion_config 保存本场 focus／initial_position，私人配置仅本人进入Prompt，空观点不推断阵营。
+
+迁移007增加模式、配置JSON、模板和角色公开身份列及mode索引；旧记录mode=simulation、public_profile为空，旧请求快照原样保留。新增列不改变原事件schema_version。契约版本dm.p1.1；生成文件仍只由scripts/export_contracts.sh生成。
+
+Context流程：完整SceneSnapshot → visibility.filter_context → VisibleContext → 对应模式模板。VisibleContext仅包含公开PublicRole名册、自己的snapshot／discussion_config与合法可见条目，不携带第三方私人快照。模板分别为role_action@simulation.p1.1和role_action@discussion.p1.1；共用身份、四种产品行动、引用与工具禁用规则。Renderer不接触未过滤时间线。Runner仅接线mode／mode_config，Scheduler算法与状态机完全共用。
+
+/api/scenes?mode=...只读筛选；/statistics?viewer_id=...通过现有可见性集合和本人行动记录统计消息、明确回复、参与者、成功／失败／UNKNOWN及PASS。观察者可查看全场；角色不拿隐藏会话或他人行动计数。统计不调用模型、不回写人设，也不输入Scheduler。
+
+前端仅创建表单按mode分流；ChatView、HistoryView、私聊菜单、SSE与控制共用。视图缓存仅保存场景／角色／频道ID和历史筛选，切换时清除旧数据。现有AnalysisCapability增加有限显式能力描述、supported_modes／recommended_modes；推荐不限制手动调用，公开选材与整体拒绝规则不变，未新增Analyzer或动态插件框架。
+
+
+## 人物／本场设定分离（sr.p1.1，2026-09-29）
+
+人物目录复用 template_id／name。SceneRoleProfile 包含 public_profile、persona、speech_style、initial_goal、private_background；新场景的完整配置由 AgentSpecRequest.role_profile 提供，未提供的五字段保持空。创建后仍使用既有 scene_agents.snapshot_* 存储，不另建运行引擎或动态模板引用。DiscussionParticipantConfig 仍为本场私人配置。IdentityCreateRequest 提供仅名称入站，旧完整模板入站／更新／复制保留兼容；新界面只编辑目录名称。
+
+Scene.configuration_version 为严格整数 1／2。008 仅增加该列，旧场景默认 1，原业务列和 request_snapshot_json 不重写；版本 1 保留旧模板复制与 p1.1 提示。新界面提交版本 2，只取目录名称；预置场景直接复制 PresetScene.agents 的配置，同名目录旧文字不能覆盖预设。新补齐的预设目录项为名称条目，既有旧文字不删除。
+
+PATCH /api/scenes/{scene_id}/agents/{agent_id}/profile 接受完整 role_profile，仅限版本 2、READY、预算未锁定；discussion_config 省略保留、显式空配置清空。仓储在写事务内再次校验首次请求锁定，防止检查与提交之间开始运行。更新不改变来源 ID／agent_id，不发起模型请求，也不影响其它 Scene；开始后配置固定，后续变化使用原事件链路。
+
+SceneSnapshot／VisibleContext 传递配置版本，过滤后才渲染本人资料与公开名册。版本 2 Prompt 标记为 role_action@simulation.sr.1／discussion.sr.1，说明资料只用于本场、目标可变、空资料不从姓名或旧场补全。行动规则与校验共用。Runner 只增加配置版本接线；Scheduler、模型适配、状态机、预算、公私聊、SSE 与分析生产代码均沿用开工基线。
+
+当前本机 5175／8002 服务已升级到 sr.p1.1，先备份试用库后迁移 007→008；旧业务字段逐项一致，257 条原请求保留，启动新增供应商请求 0。恢复使用升级前备份配合旧应用；不要让旧程序直接读取升级后的库。服务凭证仍由配置层加载，证据只记录布尔值与来源。详情见 state/reports/CHANGE-scene-role-profile.md 与服务回执。
+
+
+## 自由续聊 FC（2026-09-29）
+
+- `Scene.chat_policy_version` 独立于人物 `configuration_version`；009迁移默认1，创建API默认2。旧Prompt/请求快照原样保留，新模板为 `role_action@{mode}.fc.1`。
+- 策略2每个角色都能参与基本轮转，成功事务写入单调 `last_success_order`，公平性不依赖墙上时钟。最新消息的被点名／收件人优先仅在目标未处理该seq时有效，成功推进游标即消费，连续优先上限仍2。失败／UNKNOWN不推进成功游标。
+- `last_success_action=PASS` 与本人可见外部消息/事件的processed_seq一起决定沉默；未完成启动机会的角色不算沉默。自己的发言仍使本人未沉默，须以后主动PASS；隐藏私聊不改变无关角色Prompt或上下文计数。全员判定前先激活待生效事件。所有显式开始／恢复／单步入口也先激活已接受事件。
+- 从实际全员沉默再次显式运行，在转RUNNING的同一事务清空PASS标志，保留顺序、已处理位置和预算。孤儿RUNNING／PAUSING／STOPPING即使没有PENDING请求，重启后也暂停为PROCESS_INTERRUPT，不重放已成功行动。
+- 控制命令在执行副作用前写入未确认回执，完成后更新结果。未确认回执重放返回当前状态与结果未确认提示，不再次执行；操作者须使用新request_id显式操作。这保证崩溃后相同命令不会重复消费预算，不承诺中断命令必然已执行。
+- 模型请求及ReferenceScope保存一致策略；真实解析、Mock与Runner都检查本场正文上限。状态/视角API计算实际Prompt码点数，viewer查询仅返回本人。观察查询不写游标或调用模型。分析仍通过唯一隔离端口、各4000码点，无自动截断／摘要或工具扩权。

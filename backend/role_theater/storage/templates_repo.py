@@ -10,7 +10,7 @@ from .database import Database
 
 _COLUMNS = (
     "template_id, name, persona, speech_style, initial_goal, private_background,"
-    " is_preset, created_at, updated_at"
+    " is_preset, created_at, updated_at, public_profile"
 )
 
 
@@ -22,6 +22,7 @@ def _to_model(row: sqlite3.Row) -> AgentTemplate:
         speech_style=row["speech_style"],
         initial_goal=row["initial_goal"],
         private_background=row["private_background"],
+        public_profile=row["public_profile"],
         created_at=datetime.fromisoformat(row["created_at"]),
         updated_at=datetime.fromisoformat(row["updated_at"]),
     )
@@ -65,8 +66,8 @@ class TemplateRepository:
             conn.execute(
                 "INSERT INTO agent_templates"
                 " (template_id, name, persona, speech_style, initial_goal, private_background,"
-                "  is_preset, created_at, updated_at)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "  is_preset, created_at, updated_at, public_profile)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     template.template_id,
                     template.name,
@@ -77,6 +78,7 @@ class TemplateRepository:
                     1 if is_preset else 0,
                     template.created_at.isoformat(),
                     template.updated_at.isoformat(),
+                    template.public_profile,
                 ),
             )
 
@@ -85,7 +87,7 @@ class TemplateRepository:
             conn.execute(
                 "UPDATE agent_templates"
                 " SET name = ?, persona = ?, speech_style = ?, initial_goal = ?,"
-                "     private_background = ?, updated_at = ?"
+                "     private_background = ?, updated_at = ?, public_profile = ?"
                 " WHERE template_id = ?",
                 (
                     template.name,
@@ -94,6 +96,7 @@ class TemplateRepository:
                     template.initial_goal,
                     template.private_background,
                     template.updated_at.isoformat(),
+                    template.public_profile,
                     template.template_id,
                 ),
             )

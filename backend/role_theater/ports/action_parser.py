@@ -15,15 +15,17 @@ import json
 import re
 
 from ..contracts import (
+    ActionType,
     ActionDraft,
     ModelFailure,
     ModelFailureKind,
     ReferenceScope,
 )
 from pydantic import ValidationError
+from ..contracts.limits import LEGACY_SPEAK_TEXT_CODEPOINTS, MAX_SPEAK_TEXT_CODEPOINTS
 
-#: 只允许这四个字段（PRD 4.2：模型只返回 action／text／两个引用）。
-ALLOWED_FIELDS = frozenset({"action", "text", "reply_to_message_id", "requested_speaker_id"})
+#: 只允许五个字段（PRD 4.2），身份和频道标识由服务端决定。
+ALLOWED_FIELDS = frozenset({"action", "text", "reply_to_message_id", "requested_speaker_id", "recipient_id"})
 
 #: 提示词里的发言编号写法：``3``／``"3"``／``"#3"``／``"[#3]"`` 都指同一条发言。
 _SEQ_ALIAS = re.compile(r"^\[?#?(\d+)\]?$")
@@ -50,14 +52,27 @@ FINISH_REASON_DETAILS: dict[str, str] = {
 NORMAL_FINISH_REASONS = frozenset({"stop", None})
 
 
-def validate_references(draft: ActionDraft, scope: ReferenceScope | None) -> ModelFailure | None:
+def validate_references(draft: ActionDraft, scope: ReferenceScope | None, *, chat_policy_version: int | None = None) -> ModelFailure | None:
     """校验引用是否落在合法范围内（PRD 4.2）。返回 None 表示通过。"""
+
+    policy = chat_policy_version if chat_policy_version is not None else (scope.chat_policy_version if scope else 1)
+    limit = MAX_SPEAK_TEXT_CODEPOINTS if policy == 2 else LEGACY_SPEAK_TEXT_CODEPOINTS
+    if len(draft.text) > limit:
+        return ModelFailure(kind=ModelFailureKind.SCHEMA_INVALID,
+                            detail=f"正文超过本场 {limit} 个 Unicode 码点上限")
 
     if scope is None:
         return None
 
+    if draft.recipient_id is not None:
+        if draft.recipient_id == scope.actor_id or draft.recipient_id not in scope.allowed_speaker_ids:
+            return ModelFailure(kind=ModelFailureKind.REFERENCE_INVALID, detail="私聊收件人必须是本场另一角色")
     if draft.reply_to_message_id is not None:
-        if draft.reply_to_message_id not in set(scope.allowed_message_ids):
+        if draft.action is ActionType.PRIVATE:
+            valid = scope.received_private_messages.get(draft.reply_to_message_id) == draft.recipient_id
+        else:
+            valid = draft.reply_to_message_id in scope.allowed_message_ids
+        if not valid:
             return ModelFailure(
                 kind=ModelFailureKind.REFERENCE_INVALID,
                 detail=f"reply_to_message_id 不是本场已提交且该角色可见的公开发言："
@@ -88,7 +103,7 @@ def resolve_message_alias(value: object, scope: ReferenceScope | None) -> object
     ``REFERENCE_INVALID``）。
     """
 
-    if scope is None or not scope.allowed_message_seqs:
+    if scope is None or not (scope.allowed_message_seqs or scope.private_message_seqs):
         return value
 
     seq: int | None = None
@@ -104,7 +119,7 @@ def resolve_message_alias(value: object, scope: ReferenceScope | None) -> object
     if seq is None:
         return value
 
-    resolved = scope.allowed_message_seqs.get(seq)
+    resolved = scope.allowed_message_seqs.get(seq) or scope.private_message_seqs.get(seq)
     if resolved is not None:
         return resolved
     # 序号越界：转成字符串，让引用校验而不是字段类型来报告这个错误。
@@ -116,6 +131,7 @@ def parse_action_content(
     *,
     finish_reason: str | None = None,
     scope: ReferenceScope | None = None,
+    chat_policy_version: int | None = None,
 ) -> ActionDraft | ModelFailure:
     """把模型返回的文本解析为行动草稿或失败分类。
 
@@ -172,11 +188,14 @@ def parse_action_content(
             payload = {**payload, "reply_to_message_id": resolved}
 
     try:
-        draft = ActionDraft.model_validate(payload)
+        draft = ActionDraft.model_validate(payload, context={
+            "chat_policy_version": chat_policy_version if chat_policy_version is not None else
+                scope.chat_policy_version if scope is not None else 1,
+        })
     except ValidationError as exc:
         return ModelFailure(kind=ModelFailureKind.SCHEMA_INVALID, detail=str(exc))
 
-    reference_failure = validate_references(draft, scope)
+    reference_failure = validate_references(draft, scope, chat_policy_version=chat_policy_version)
     if reference_failure is not None:
         return reference_failure
 

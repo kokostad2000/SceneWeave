@@ -10,6 +10,7 @@ from fastapi import APIRouter, status
 
 from ..contracts import AgentTemplate
 from ..contracts.api import (
+    IdentityCreateRequest,
     TemplateCopyRequest,
     TemplateCreateRequest,
     TemplateListView,
@@ -22,8 +23,9 @@ router = APIRouter(prefix="/api/templates", tags=["m01-templates"])
 
 
 @router.post("", response_model=AgentTemplate, status_code=status.HTTP_201_CREATED)
-def create_template(payload: TemplateCreateRequest, service: TemplateServiceDep) -> AgentTemplate:
-    return service.create(payload)
+def create_template(payload: TemplateCreateRequest | IdentityCreateRequest, service: TemplateServiceDep) -> AgentTemplate:
+    from ..contracts import AgentProfileFields
+    return service.create(AgentProfileFields(**payload.model_dump()))
 
 
 @router.get("", response_model=TemplateListView)
@@ -49,6 +51,7 @@ def update_template(
         speech_style=payload.speech_style,
         initial_goal=payload.initial_goal,
         private_background=payload.private_background,
+        public_profile=payload.public_profile,
     )
 
 

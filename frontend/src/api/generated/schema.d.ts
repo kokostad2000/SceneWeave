@@ -170,6 +170,23 @@ export interface paths {
         patch: operations["rename_agent_api_scenes__scene_id__agents__agent_id__patch"];
         trace?: never;
     };
+    "/api/scenes/{scene_id}/agents/{agent_id}/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Agent Profile */
+        patch: operations["update_agent_profile_api_scenes__scene_id__agents__agent_id__profile_patch"];
+        trace?: never;
+    };
     "/api/scenes/{scene_id}/agents/{agent_id}/viewpoint": {
         parameters: {
             query?: never;
@@ -257,6 +274,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/scenes/{scene_id}/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Conversations */
+        get: operations["conversations_api_scenes__scene_id__conversations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/scenes/{scene_id}/events": {
         parameters: {
             query?: never;
@@ -293,6 +327,23 @@ export interface paths {
          * @description 运行状态与预算（含是否有在途调用）。
          */
         get: operations["run_state_api_scenes__scene_id__state_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/scenes/{scene_id}/statistics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Fact Statistics */
+        get: operations["fact_statistics_api_scenes__scene_id__statistics_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -431,27 +482,37 @@ export interface components {
          */
         ActionDraft: {
             action: components["schemas"]["ActionType"];
-            /**
-             * Reply To Message Id
-             * @default null
-             */
-            reply_to_message_id: string | null;
-            /**
-             * Requested Speaker Id
-             * @default null
-             */
-            requested_speaker_id: string | null;
+            /** Recipient Id */
+            recipient_id?: string | null;
+            /** Reply To Message Id */
+            reply_to_message_id?: string | null;
+            /** Requested Speaker Id */
+            requested_speaker_id?: string | null;
             /**
              * Text
              * @default
              */
             text: string;
         };
+        /** ActionHistoryView */
+        ActionHistoryView: {
+            /** Action Id */
+            action_id: string;
+            /** Actor Id */
+            actor_id: string;
+            /** Created At */
+            created_at: string;
+            draft?: components["schemas"]["ActionDraft"] | null;
+            /** Failure Kind */
+            failure_kind?: string | null;
+            /** Status */
+            status: string;
+        };
         /**
          * ActionRecord
          * @description 一次角色调用的落盘结果。
          *
-         *     只有 ``SUCCEEDED`` 的 SPEAK／PASS 才推进该角色的已处理位置；失败不推进
+         *     只有 ``SUCCEEDED`` 的 SPEAK／PRIVATE／PASS 才推进该角色的已处理位置；失败不推进
          *     （PRD 5.1）。``input_cursor_seq`` 记录本次调用使用的输入快照截止序号。
          */
         ActionRecord: {
@@ -488,32 +549,59 @@ export interface components {
          * @description 模型只能返回的行动类型（PRD 4.2）。
          * @enum {string}
          */
-        ActionType: "SPEAK" | "PASS";
+        ActionType: "SPEAK" | "PRIVATE" | "PASS";
         /**
          * AgentCreateRequest
          * @description 由模板新增一名本场角色。
          */
         AgentCreateRequest: {
+            discussion_config?: components["schemas"]["DiscussionParticipantConfig"] | null;
             /** Name */
             name?: string | null;
+            role_profile?: components["schemas"]["SceneRoleProfile"] | null;
             /** Template Id */
             template_id: string;
         };
         /**
          * AgentProfileFields
-         * @description 模板保存的五项内容（PRD 3.2）。长度按 Unicode 码点校验。
+         * @description 人物名称与旧版兼容资料；新创建流程只复用名称。
          */
         AgentProfileFields: {
-            /** Initial Goal */
+            /**
+             * Initial Goal
+             * @default
+             */
             initial_goal: string;
             /** Name */
             name: string;
-            /** Persona */
+            /**
+             * Persona
+             * @default
+             */
             persona: string;
-            /** Private Background */
+            /**
+             * Private Background
+             * @default
+             */
             private_background: string;
-            /** Speech Style */
+            /**
+             * Public Profile
+             * @default
+             */
+            public_profile: string;
+            /**
+             * Speech Style
+             * @default
+             */
             speech_style: string;
+        };
+        /**
+         * AgentProfileUpdateRequest
+         * @description 未开始场景的完整本场配置；省略讨论配置表示保留。
+         */
+        AgentProfileUpdateRequest: {
+            discussion_config?: components["schemas"]["DiscussionParticipantConfig"] | null;
+            role_profile: components["schemas"]["SceneRoleProfile"];
         };
         /**
          * AgentRenameRequest
@@ -535,17 +623,34 @@ export interface components {
              * Format: date-time
              */
             captured_at: string;
-            /** Initial Goal */
+            /**
+             * Initial Goal
+             * @default
+             */
             initial_goal: string;
             /** Name */
             name: string;
-            /** Persona */
+            /**
+             * Persona
+             * @default
+             */
             persona: string;
-            /** Private Background */
+            /**
+             * Private Background
+             * @default
+             */
             private_background: string;
+            /**
+             * Public Profile
+             * @default
+             */
+            public_profile: string;
             /** Source Template Id */
             source_template_id: string;
-            /** Speech Style */
+            /**
+             * Speech Style
+             * @default
+             */
             speech_style: string;
         };
         /**
@@ -553,8 +658,10 @@ export interface components {
          * @description 创建场景时对一名本场角色的要求。
          */
         AgentSpecRequest: {
+            discussion_config?: components["schemas"]["DiscussionParticipantConfig"] | null;
             /** Name */
             name?: string | null;
+            role_profile?: components["schemas"]["SceneRoleProfile"] | null;
             /** Template Id */
             template_id: string;
         };
@@ -581,6 +688,11 @@ export interface components {
             /** Agent Id */
             agent_id: string;
             /**
+             * Generating
+             * @default false
+             */
+            generating: boolean;
+            /**
              * Has Acted
              * @default false
              */
@@ -594,6 +706,14 @@ export interface components {
             last_action_at?: string | null;
             /** Last Action Status */
             last_action_status?: string | null;
+            /** Last Failure Kind */
+            last_failure_kind?: string | null;
+            last_successful_draft?: components["schemas"]["ActionDraft"] | null;
+            /**
+             * Max Prompt Codepoints
+             * @default 32000
+             */
+            max_prompt_codepoints: number;
             /** Name */
             name: string;
             /** Order Index */
@@ -603,6 +723,11 @@ export interface components {
              * @default 0
              */
             processed_seq: number;
+            /**
+             * Prompt Codepoints
+             * @default 0
+             */
+            prompt_codepoints: number;
             /**
              * Speak Count
              * @default 0
@@ -624,15 +749,32 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
-            /** Initial Goal */
+            /**
+             * Initial Goal
+             * @default
+             */
             initial_goal: string;
             /** Name */
             name: string;
-            /** Persona */
+            /**
+             * Persona
+             * @default
+             */
             persona: string;
-            /** Private Background */
+            /**
+             * Private Background
+             * @default
+             */
             private_background: string;
-            /** Speech Style */
+            /**
+             * Public Profile
+             * @default
+             */
+            public_profile: string;
+            /**
+             * Speech Style
+             * @default
+             */
             speech_style: string;
             /** Template Id */
             template_id: string;
@@ -648,6 +790,16 @@ export interface components {
          */
         AnalysisCapability: {
             /**
+             * Analyzer Id
+             * @default behavior
+             */
+            analyzer_id: string;
+            /**
+             * Description
+             * @default 基于选中的公开文本解释虚构角色行为；手动调用，只读观察。
+             */
+            description: string;
+            /**
              * Enabled
              * @default false
              */
@@ -657,8 +809,17 @@ export interface components {
              * @default false
              */
             external_package_installed: boolean;
+            /**
+             * Name
+             * @default 行为分析
+             */
+            name: string;
             /** Reason */
             reason?: string | null;
+            /** Recommended Modes */
+            recommended_modes?: components["schemas"]["SceneMode"][];
+            /** Supported Modes */
+            supported_modes?: components["schemas"]["SceneMode"][];
         };
         /**
          * AnalysisCapabilityView
@@ -955,7 +1116,7 @@ export interface components {
             };
             /**
              * Contract Version
-             * @default m00.1
+             * @default fc.p1.1
              */
             contract_version: string;
             /** Enums */
@@ -1002,6 +1163,50 @@ export interface components {
          * @enum {string}
          */
         ControlCommandType: "START" | "STEP" | "PAUSE" | "RESUME" | "STOP";
+        /** ConversationListView */
+        ConversationListView: {
+            /** Conversations */
+            conversations: components["schemas"]["ConversationView"][];
+            /** Scene Id */
+            scene_id: string;
+            /** Total */
+            total: number;
+        };
+        /** ConversationView */
+        ConversationView: {
+            /** Conversation Id */
+            conversation_id: string;
+            /** Last Seq */
+            last_seq: number;
+            /** Message Count */
+            message_count: number;
+            /** Participant Ids */
+            participant_ids: string[];
+            /** Participant Names */
+            participant_names: string[];
+            /** Scene Id */
+            scene_id: string;
+        };
+        /** DiscussionConfig */
+        DiscussionConfig: {
+            /**
+             * Materials
+             * @default
+             */
+            materials: string;
+            /** Topic */
+            topic: string;
+        };
+        /** DiscussionParticipantConfig */
+        DiscussionParticipantConfig: {
+            /**
+             * Focus
+             * @default
+             */
+            focus: string;
+            /** Initial Position */
+            initial_position?: string | null;
+        };
         /**
          * EnumSummary
          * @description 单个枚举的取值摘要。
@@ -1079,6 +1284,26 @@ export interface components {
          * @enum {string}
          */
         EventVisibility: "ALL" | "TARGETED";
+        /**
+         * FactStatisticsView
+         * @description 已提交记录事实；viewer_id 的统计只包含其合法集合。
+         */
+        FactStatisticsView: {
+            /** Participant Ids */
+            participant_ids: string[];
+            /** Private Messages */
+            private_messages: number;
+            /** Public Messages */
+            public_messages: number;
+            /** Reply Relations */
+            reply_relations: components["schemas"]["ReplyRelationView"][];
+            /** Role Actions */
+            role_actions: components["schemas"]["RoleActionCountView"][];
+            /** Scene Id */
+            scene_id: string;
+            /** Viewer Id */
+            viewer_id?: string | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1109,7 +1334,7 @@ export interface components {
             app_version: string;
             /**
              * Contract Version
-             * @default m00.1
+             * @default fc.p1.1
              */
             contract_version: string;
             /**
@@ -1137,6 +1362,14 @@ export interface components {
             status: "ok";
         };
         /**
+         * IdentityCreateRequest
+         * @description Name-only creation, distinct from a complete legacy profile.
+         */
+        IdentityCreateRequest: {
+            /** Name */
+            name: string;
+        };
+        /**
          * InjectEventCommand
          * @description 提交人工事件（暂停时立即生效；调用中先保存为待生效，PRD 4.3）。
          */
@@ -1160,14 +1393,16 @@ export interface components {
         };
         /**
          * Message
-         * @description 已提交的公开角色发言（PRD 4.1、4.2）。
+         * @description 已提交的公开或一对一私聊角色消息（PRD 4.1、4.2）。
          *
          *     ``PASS`` 不形成聊天气泡，但保存行动结果并推进已处理位置——因此这里只
-         *     承载 SPEAK 产生的消息。
+         *     承载 SPEAK／PRIVATE 产生的消息。
          */
         Message: {
             /** Actor Id */
             actor_id: string;
+            /** Conversation Id */
+            conversation_id?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -1175,17 +1410,31 @@ export interface components {
             created_at: string;
             /** Message Id */
             message_id: string;
+            /** Recipient Id */
+            recipient_id?: string | null;
             /** Reply To Message Id */
             reply_to_message_id?: string | null;
             /** Requested Speaker Id */
             requested_speaker_id?: string | null;
             /** Scene Id */
             scene_id: string;
+            /**
+             * Schema Version
+             * @default 1
+             */
+            schema_version: number;
             /** Seq */
             seq: number;
             /** Text */
             text: string;
+            /** @default PUBLIC */
+            visibility: components["schemas"]["MessageVisibility"];
         };
+        /**
+         * MessageVisibility
+         * @enum {string}
+         */
+        MessageVisibility: "PUBLIC" | "PRIVATE";
         /**
          * ModelActionRequest
          * @description 一次角色行动请求。
@@ -1196,11 +1445,17 @@ export interface components {
         ModelActionRequest: {
             /** Actor Id */
             actor_id: string;
+            /**
+             * Chat Policy Version
+             * @default 1
+             * @enum {integer}
+             */
+            chat_policy_version: 1 | 2;
             /** Cursor Seq */
             cursor_seq: number;
             /**
              * @default {
-             *       "max_output_tokens": 1024,
+             *       "max_output_tokens": 4096,
              *       "model": "deepseek-flash",
              *       "request_timeout_seconds": 90,
              *       "response_format": "json_object",
@@ -1313,7 +1568,7 @@ export interface components {
         ModelParams: {
             /**
              * Max Output Tokens
-             * @default 1024
+             * @default 4096
              */
             max_output_tokens: number;
             /**
@@ -1357,7 +1612,7 @@ export interface components {
          * @description 暂停原因必须区分（PRD 5.2）。
          * @enum {string}
          */
-        PauseReason: "NO_NEW_INFORMATION" | "MANUAL" | "PROVIDER_ERROR" | "CONTEXT_LIMIT" | "PROCESS_INTERRUPT";
+        PauseReason: "NO_NEW_INFORMATION" | "COLLECTIVE_SILENCE" | "MANUAL" | "PROVIDER_ERROR" | "CONTEXT_LIMIT" | "PROCESS_INTERRUPT";
         /** PresetListView */
         PresetListView: {
             /** Presets */
@@ -1368,6 +1623,18 @@ export interface components {
          * @description 用预置场景创建会话。
          */
         PresetSceneCreateRequest: {
+            /**
+             * Chat Policy Version
+             * @default 2
+             * @enum {integer}
+             */
+            chat_policy_version: 1 | 2;
+            /**
+             * Configuration Version
+             * @default 1
+             * @enum {integer}
+             */
+            configuration_version: 1 | 2;
             /**
              * Preset Key
              * @default roommates
@@ -1411,10 +1678,52 @@ export interface components {
             };
             /** Allowed Speaker Ids */
             allowed_speaker_ids?: string[];
+            /**
+             * Chat Policy Version
+             * @default 1
+             * @enum {integer}
+             */
+            chat_policy_version: 1 | 2;
+            /** Private Message Seqs */
+            private_message_seqs?: {
+                [key: string]: string;
+            };
+            /** Received Private Messages */
+            received_private_messages?: {
+                [key: string]: string;
+            };
+        };
+        /** ReplyRelationView */
+        ReplyRelationView: {
+            /** Message Id */
+            message_id: string;
+            /** Reply To Message Id */
+            reply_to_message_id: string;
+        };
+        /** RoleActionCountView */
+        RoleActionCountView: {
+            /** Agent Id */
+            agent_id: string;
+            /** Failed */
+            failed: number;
+            /** Name */
+            name: string;
+            /** Passes */
+            passes: number;
+            /** Private Initiations */
+            private_initiations: number;
+            /** Private Replies */
+            private_replies: number;
+            /** Public Speaks */
+            public_speaks: number;
+            /** Succeeded */
+            succeeded: number;
+            /** Unknown */
+            unknown: number;
         };
         /**
          * RoleCursor
-         * @description 每个角色的已处理位置。只有成功的 SPEAK／PASS 才推进（PRD 5.1）。
+         * @description 每个角色的已处理位置。只有成功的 SPEAK／PRIVATE／PASS 才推进（PRD 5.1）。
          */
         RoleCursor: {
             /** Agent Id */
@@ -1436,6 +1745,13 @@ export interface components {
              * @default null
              */
             last_action_turn_id: string | null;
+            /** @default null */
+            last_success_action: components["schemas"]["ActionType"] | null;
+            /**
+             * Last Success Order
+             * @default 0
+             */
+            last_success_order: number;
             /**
              * Processed Seq
              * @default 0
@@ -1535,12 +1851,28 @@ export interface components {
             background: string;
             budget: components["schemas"]["Budget"];
             /**
+             * Chat Policy Version
+             * @default 1
+             * @enum {integer}
+             */
+            chat_policy_version: 1 | 2;
+            /**
+             * Configuration Version
+             * @default 1
+             * @enum {integer}
+             */
+            configuration_version: 1 | 2;
+            /**
              * Created At
              * Format: date-time
              */
             created_at: string;
             /** Ended At */
             ended_at?: string | null;
+            /** @default simulation */
+            mode: components["schemas"]["SceneMode"];
+            /** Mode Config */
+            mode_config?: components["schemas"]["SimulationConfig"] | components["schemas"]["DiscussionConfig"] | null;
             pause_reason?: components["schemas"]["PauseReason"] | null;
             /** Scene Id */
             scene_id: string;
@@ -1568,6 +1900,7 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            discussion_config?: components["schemas"]["DiscussionParticipantConfig"] | null;
             /** Name */
             name: string;
             /** Order Index */
@@ -1591,10 +1924,26 @@ export interface components {
              * @default
              */
             background: string;
+            /**
+             * Chat Policy Version
+             * @default 2
+             * @enum {integer}
+             */
+            chat_policy_version: 1 | 2;
+            /**
+             * Configuration Version
+             * @default 1
+             * @enum {integer}
+             */
+            configuration_version: 1 | 2;
             /** Max Analysis Requests */
             max_analysis_requests?: number | null;
             /** Max Role Requests */
             max_role_requests?: number | null;
+            /** @default simulation */
+            mode: components["schemas"]["SceneMode"];
+            /** Mode Config */
+            mode_config?: components["schemas"]["SimulationConfig"] | components["schemas"]["DiscussionConfig"] | null;
             /** Title */
             title: string;
         };
@@ -1615,6 +1964,42 @@ export interface components {
             scenes: components["schemas"]["SceneSummaryView"][];
         };
         /**
+         * SceneMode
+         * @enum {string}
+         */
+        SceneMode: "simulation" | "discussion";
+        /**
+         * SceneRoleProfile
+         * @description 本场行为资料；未填写保持为空，不回退到人物目录。
+         */
+        SceneRoleProfile: {
+            /**
+             * Initial Goal
+             * @default
+             */
+            initial_goal: string;
+            /**
+             * Persona
+             * @default
+             */
+            persona: string;
+            /**
+             * Private Background
+             * @default
+             */
+            private_background: string;
+            /**
+             * Public Profile
+             * @default
+             */
+            public_profile: string;
+            /**
+             * Speech Style
+             * @default
+             */
+            speech_style: string;
+        };
+        /**
          * SceneSummaryView
          * @description 场景列表项。
          */
@@ -1625,6 +2010,8 @@ export interface components {
             budget_locked: boolean;
             /** Created At */
             created_at: string;
+            /** @default simulation */
+            mode: components["schemas"]["SceneMode"];
             /** Scene Id */
             scene_id: string;
             /** Status */
@@ -1656,6 +2043,19 @@ export interface components {
          * @enum {string}
          */
         SchedulerReason: "STARTUP_OPPORTUNITY" | "NEW_VISIBLE_INFORMATION" | "REQUESTED_SPEAKER_PRIORITY" | "ROUND_ROBIN";
+        /** SimulationConfig */
+        SimulationConfig: {
+            /**
+             * Public Information
+             * @default
+             */
+            public_information: string;
+            /**
+             * Situation
+             * @default
+             */
+            situation: string;
+        };
         /**
          * TemplateCopyRequest
          * @description 复制角色模板；省略 ``name`` 时自动取第一个可用的不重复名称。
@@ -1669,15 +2069,32 @@ export interface components {
          * @description 创建角色模板。
          */
         TemplateCreateRequest: {
-            /** Initial Goal */
+            /**
+             * Initial Goal
+             * @default
+             */
             initial_goal: string;
             /** Name */
             name: string;
-            /** Persona */
+            /**
+             * Persona
+             * @default
+             */
             persona: string;
-            /** Private Background */
+            /**
+             * Private Background
+             * @default
+             */
             private_background: string;
-            /** Speech Style */
+            /**
+             * Public Profile
+             * @default
+             */
+            public_profile: string;
+            /**
+             * Speech Style
+             * @default
+             */
             speech_style: string;
         };
         /**
@@ -1701,6 +2118,8 @@ export interface components {
             persona?: string | null;
             /** Private Background */
             private_background?: string | null;
+            /** Public Profile */
+            public_profile?: string | null;
             /** Speech Style */
             speech_style?: string | null;
         };
@@ -1738,8 +2157,12 @@ export interface components {
          * @description 时间线（含预算与运行状态，便于历史页只读渲染）。
          */
         TimelineView: {
+            /** Actions */
+            actions?: components["schemas"]["ActionHistoryView"][];
             /** Analysis Requests Used */
             analysis_requests_used: number;
+            /** Conversations */
+            conversations?: components["schemas"]["ConversationView"][];
             /** Entries */
             entries: components["schemas"]["TimelineEntryView"][];
             /** Last Seq */
@@ -1792,14 +2215,30 @@ export interface components {
          * @description 角色视角（PRD 7.2）：与调用器**实际使用相同**的上下文选择结果。
          */
         ViewpointView: {
+            /** Actions */
+            actions?: components["schemas"]["ActionHistoryView"][];
             /** Agent Id */
             agent_id: string;
             /** Agent Name */
             agent_name: string;
+            /** Conversations */
+            conversations?: components["schemas"]["ConversationView"][];
             /** Cutoff Seq */
             cutoff_seq: number;
+            /** Entries */
+            entries?: components["schemas"]["TimelineEntryView"][];
+            /**
+             * Max Prompt Codepoints
+             * @default 32000
+             */
+            max_prompt_codepoints: number;
             /** Prompt */
             prompt: string;
+            /**
+             * Prompt Codepoints
+             * @default 0
+             */
+            prompt_codepoints: number;
             /** Prompt Template Id */
             prompt_template_id: string;
             /** Public Roster */
@@ -1862,7 +2301,9 @@ export interface operations {
     };
     list_scenes_api_scenes_get: {
         parameters: {
-            query?: never;
+            query?: {
+                mode?: components["schemas"]["SceneMode"] | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -1876,6 +2317,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SceneListView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -2034,7 +2484,9 @@ export interface operations {
     };
     agent_status_api_scenes__scene_id__agents_status_get: {
         parameters: {
-            query?: never;
+            query?: {
+                viewer_id?: string | null;
+            };
             header?: never;
             path: {
                 scene_id: string;
@@ -2106,6 +2558,42 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["AgentRenameRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SceneAgent"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_agent_profile_api_scenes__scene_id__agents__agent_id__profile_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scene_id: string;
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentProfileUpdateRequest"];
             };
         };
         responses: {
@@ -2295,9 +2783,46 @@ export interface operations {
             };
         };
     };
+    conversations_api_scenes__scene_id__conversations_get: {
+        parameters: {
+            query?: {
+                viewer_id?: string | null;
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                scene_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationListView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_events_api_scenes__scene_id__events_get: {
         parameters: {
-            query?: never;
+            query?: {
+                viewer_id?: string | null;
+            };
             header?: never;
             path: {
                 scene_id: string;
@@ -2392,6 +2917,39 @@ export interface operations {
             };
         };
     };
+    fact_statistics_api_scenes__scene_id__statistics_get: {
+        parameters: {
+            query?: {
+                viewer_id?: string | null;
+            };
+            header?: never;
+            path: {
+                scene_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FactStatisticsView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     stream_api_scenes__scene_id__stream_get: {
         parameters: {
             query?: {
@@ -2461,6 +3019,10 @@ export interface operations {
         parameters: {
             query?: {
                 since_seq?: number;
+                viewer_id?: string | null;
+                conversation_id?: string | null;
+                offset?: number;
+                limit?: number | null;
             };
             header?: never;
             path: {
@@ -2519,7 +3081,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["TemplateCreateRequest"];
+                "application/json": components["schemas"]["TemplateCreateRequest"] | components["schemas"]["IdentityCreateRequest"];
             };
         };
         responses: {

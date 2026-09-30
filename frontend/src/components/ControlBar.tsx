@@ -97,6 +97,7 @@ export function ControlBar({ sceneId, state, agents, disabled = false, onChanged
       </div>
 
       {notice ? <p className="hint">{notice}</p> : null}
+      {state.pause_reason === 'COLLECTIVE_SILENCE' ? <p className="hint">所有角色本轮均未发言。点击“继续”或“单步”可重新给予行动机会。</p> : null}
 
       <div className="controls__row controls__row--event">
         <input

@@ -208,7 +208,7 @@ def test_model_params_disable_implicit_retries() -> None:
     params = ModelParams()
 
     assert params.model == "deepseek-flash"
-    assert params.max_output_tokens == 1024
+    assert params.max_output_tokens == 4096
     assert params.request_timeout_seconds == 90
     assert params.sdk_max_retries == 0
     assert params.thinking_enabled is False

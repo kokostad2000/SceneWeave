@@ -31,7 +31,7 @@ function mockFetch(routes: Record<string, unknown>) {
 const AGENTS = [
   {
     agent_id: 'agt-an', scene_id: 'scn-1', name: '安然', order_index: 0,
-    snapshot: { source_template_id: 'tpl-1', name: '安然', persona: '主动热情', speech_style: '热情', initial_goal: '想找人一起度过晚上', private_background: '朋友临时取消了聚会', captured_at: '2026-09-26T20:00:00+00:00' },
+    snapshot: { public_profile: "", source_template_id: 'tpl-1', name: '安然', persona: '主动热情', speech_style: '热情', initial_goal: '想找人一起度过晚上', private_background: '朋友临时取消了聚会', captured_at: '2026-09-26T20:00:00+00:00' },
     created_at: '2026-09-26T20:00:00+00:00',
   },
 ]
@@ -39,7 +39,7 @@ const AGENTS = [
 const ENTRIES: TimelineEntryView[] = [
   {
     kind: 'message', seq: 1,
-    message: { message_id: 'msg-1', scene_id: 'scn-1', seq: 1, actor_id: 'agt-an', text: '今晚一起吃饭吗？', reply_to_message_id: null, requested_speaker_id: null, created_at: '2026-09-26T20:00:00+00:00' },
+    message: { visibility: 'PUBLIC', schema_version: 1, message_id: 'msg-1', scene_id: 'scn-1', seq: 1, actor_id: 'agt-an', text: '今晚一起吃饭吗？', reply_to_message_id: null, requested_speaker_id: null, created_at: '2026-09-26T20:00:00+00:00' },
     event: null, author_name: '安然',
   },
   {
@@ -108,6 +108,22 @@ afterEach(() => {
 })
 
 describe('分析抽屉（M06 接线）', () => {
+  it.each(['simulation', 'discussion'] as const)('推荐不限制 %s 的手动公开选材', async (mode) => {
+    const user = userEvent.setup()
+    mockFetch(ROUTES)
+    const privateEntry: TimelineEntryView = {
+      ...ENTRIES[0]!, seq: 4,
+      message: { ...ENTRIES[0]!.message!, seq: 4, visibility: 'PRIVATE', text: 'HIDDEN_ANALYSIS_UI', recipient_id: 'agt-xu' },
+    }
+    render(<AnalysisDrawer open mode={mode} sceneId="scn-1" agents={AGENTS} entries={[...ENTRIES, privateEntry]} onClose={() => undefined} />)
+    await screen.findByTestId('analysis-ready')
+    expect(screen.getByText(/两种模式均可手动使用/)).toBeInTheDocument()
+    expect(screen.queryByText(/HIDDEN_ANALYSIS_UI/)).toBeNull()
+    await user.selectOptions(screen.getByLabelText('分析对象'), 'agt-an')
+    await user.click(screen.getAllByRole('checkbox')[0]!)
+    expect(screen.getByRole('button', { name: '开始分析' })).toBeEnabled()
+    expect(screen.getByTestId('analysis-preview')).toHaveTextContent('今晚一起吃饭吗？')
+  })
   it('能力可用时提供开始分析按钮', async () => {
     mockFetch(ROUTES)
     render(<AnalysisDrawer open sceneId="scn-1" agents={AGENTS} entries={ENTRIES} onClose={() => undefined} />)
@@ -255,4 +271,12 @@ describe('分析抽屉（M06 接线）', () => {
       expect(screen.getByText(/分析操作数 5｜实际模型请求数 2/)).toBeInTheDocument()
     })
   })
+})
+
+
+it('PC 私聊不会进入分析候选或预览', () => {
+  const privateEntry: TimelineEntryView = { ...ENTRIES[0]!, seq:4, message: { ...ENTRIES[0]!.message!, message_id:'private', seq:4, text:'PRIVATE_ANALYSIS_UI', visibility:'PRIVATE', recipient_id:'agt-other', conversation_id:'conv' } }
+  render(<AnalysisDrawer open sceneId="scn-1" agents={AGENTS} entries={[...ENTRIES,privateEntry]} onClose={vi.fn()} />)
+  expect(screen.queryByText(/PRIVATE_ANALYSIS_UI/)).not.toBeInTheDocument()
+  expect(screen.getAllByRole('checkbox')).toHaveLength(2)
 })

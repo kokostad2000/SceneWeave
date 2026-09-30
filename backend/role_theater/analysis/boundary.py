@@ -15,6 +15,7 @@ from ..contracts import (
     AnalysisMaterialRef,
     codepoint_length,
 )
+from ..contracts.enums import MessageVisibility
 from ..context.models import TimelineItem, TimelineKind
 
 #: 拦截原因（写入 `error` 与 `degradation_flags`，便于界面解释为何没有送出材料）。
@@ -68,6 +69,8 @@ def evaluate_selection(
         item = by_seq.get(seq)
         if item is None:
             return _blocked(REASON_UNKNOWN_SEQ, f"选择的材料 #{seq} 不存在或尚未提交")
+        if item.kind is TimelineKind.MESSAGE and item.message_visibility is MessageVisibility.PRIVATE:
+            return _blocked(REASON_PRIVATE_CONTENT, f"#{seq} 是私聊，不送出分析")
         if item.kind is TimelineKind.EVENT:
             if item.visibility is not None and item.visibility.value == "TARGETED":
                 return _blocked(

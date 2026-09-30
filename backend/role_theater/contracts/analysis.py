@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from .enums import AnalysisStatus
+from .enums import AnalysisStatus, SceneMode
 from .ids import AgentId, MessageId, SceneId
 from .limits import (
     MAX_ANALYSIS_BEHAVIOR_DESCRIPTION_CODEPOINTS,
@@ -120,3 +120,8 @@ class AnalysisCapability(BaseModel):
     enabled: bool = False
     external_package_installed: bool = False
     reason: str | None = None
+    analyzer_id: str = "behavior"
+    name: str = "行为分析"
+    description: str = "基于选中的公开文本解释虚构角色行为；手动调用，只读观察。"
+    supported_modes: list[SceneMode] = Field(default_factory=lambda: list(SceneMode))
+    recommended_modes: list[SceneMode] = Field(default_factory=lambda: [SceneMode.SIMULATION])

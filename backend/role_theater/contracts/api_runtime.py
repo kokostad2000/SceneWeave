@@ -10,9 +10,10 @@ from pydantic import BaseModel, ConfigDict, Field
 from .enums import ControlCommandType, EventStatus, EventVisibility, PauseReason, RunState
 from .event import Event, EventSubmission
 from .ids import AgentId, EventId, RequestId, SceneId
-from .limits import MAX_ANALYSIS_REQUESTS_PER_SCENE, MAX_ROLE_REQUESTS_PER_SCENE
+from .limits import MAX_ANALYSIS_REQUESTS_PER_SCENE, MAX_ROLE_REQUESTS_PER_SCENE, MAX_PROMPT_CHARS
 from .runtime import RunStatus
 from .scene import Message
+from .action import ActionDraft
 
 
 class ControlCommandRequest(BaseModel):
@@ -54,6 +55,33 @@ class TimelineEntryView(BaseModel):
     author_name: str | None = None
 
 
+class ConversationView(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    conversation_id: str
+    scene_id: SceneId
+    participant_ids: list[AgentId] = Field(min_length=2, max_length=2)
+    participant_names: list[str] = Field(min_length=2, max_length=2)
+    last_seq: int = Field(ge=1)
+    message_count: int = Field(ge=1)
+
+
+class ConversationListView(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    scene_id: SceneId
+    conversations: list[ConversationView]
+    total: int = Field(ge=0)
+
+
+class ActionHistoryView(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    action_id: str
+    actor_id: AgentId
+    status: str
+    draft: ActionDraft | None = None
+    failure_kind: str | None = None
+    created_at: str
+
+
 class TimelineView(BaseModel):
     """时间线（含预算与运行状态，便于历史页只读渲染）。"""
 
@@ -67,6 +95,8 @@ class TimelineView(BaseModel):
     analysis_requests_used: int = Field(ge=0)
     max_analysis_requests: int = Field(ge=0)
     entries: list[TimelineEntryView]
+    conversations: list[ConversationView] = Field(default_factory=list)
+    actions: list[ActionHistoryView] = Field(default_factory=list)
 
 
 class ViewpointView(BaseModel):
@@ -83,6 +113,11 @@ class ViewpointView(BaseModel):
     visible_seq: list[int]
     visible_kinds: list[str]
     prompt: str
+    prompt_codepoints: int = Field(default=0, ge=0)
+    max_prompt_codepoints: int = MAX_PROMPT_CHARS
+    entries: list[TimelineEntryView] = Field(default_factory=list)
+    conversations: list[ConversationView] = Field(default_factory=list)
+    actions: list[ActionHistoryView] = Field(default_factory=list)
 
 
 class RunStateView(BaseModel):
@@ -137,6 +172,11 @@ class AgentStatusView(BaseModel):
     is_requested: bool = False
     #: 本角色已提交的公开发言条数。
     speak_count: int = Field(default=0, ge=0)
+    generating: bool = False
+    last_failure_kind: str | None = None
+    last_successful_draft: ActionDraft | None = None
+    prompt_codepoints: int = Field(default=0, ge=0)
+    max_prompt_codepoints: int = MAX_PROMPT_CHARS
 
 
 class AgentStatusListView(BaseModel):
@@ -159,3 +199,34 @@ class ScenarioSummaryView(BaseModel):
     failed: int = Field(ge=0)
     unknown: int = Field(ge=0)
     last_failure_kind: str | None = None
+
+
+class ReplyRelationView(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    message_id: str
+    reply_to_message_id: str
+
+
+class RoleActionCountView(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    agent_id: AgentId
+    name: str
+    succeeded: int = Field(ge=0)
+    public_speaks: int = Field(ge=0)
+    private_initiations: int = Field(ge=0)
+    private_replies: int = Field(ge=0)
+    passes: int = Field(ge=0)
+    failed: int = Field(ge=0)
+    unknown: int = Field(ge=0)
+
+
+class FactStatisticsView(BaseModel):
+    """已提交记录事实；viewer_id 的统计只包含其合法集合。"""
+    model_config = ConfigDict(extra="forbid")
+    scene_id: SceneId
+    viewer_id: AgentId | None = None
+    public_messages: int = Field(ge=0)
+    private_messages: int = Field(ge=0)
+    participant_ids: list[AgentId]
+    reply_relations: list[ReplyRelationView]
+    role_actions: list[RoleActionCountView]

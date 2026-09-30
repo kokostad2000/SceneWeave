@@ -92,7 +92,7 @@ cd frontend && pnpm run dev          # 打开 http://127.0.0.1:5173
 
 ### 迁移
 
-- 迁移文件：`backend/role_theater/storage/migrations/00N_*.sql`（当前 `001_initial`、`002_runtime`、`003_analysis`）。
+- 迁移文件：`backend/role_theater/storage/migrations/00N_*.sql`（当前 001_initial、002_runtime、003_analysis、004_scene_scheduler、005_private_chat、006_request_snapshot）。
 - 启动时自动应用缺失迁移；已应用迁移记录 **checksum**，内容被改写会**拒绝启动**（必须新增迁移文件）。
 - 重复启动是幂等的：第二次应用返回空列表。
 
@@ -305,3 +305,17 @@ cd backend && uv run --no-sync pytest -p scripts.block_outbound_plugin -r a
 # 备份 / 恢复
 scripts/backup_db.sh
 ```
+
+
+## 8. 私聊增量升级与回退（当前工作区 pc.1）
+
+本轮代码尚未提交。契约 pc.1／提示模板 role_action@pc.1；配套部署构建后的前端与后端，不能保留将 PRIVATE 当作公开消息的旧客户端。005 新增频道／对象／会话字段，006 保存新请求完整输入快照；001～004 未修改。旧消息为 PUBLIC、版本 1、recipient_id=null；旧场景原预算与已结束状态保留，新消息版本 2，事件版本仍 1。
+
+1. 使用 `scripts/backup_db.sh <源库> <升级前备份>` 取得一致备份，备份路径需为本项目专用目录。
+2. 将备份复制成独立升级副本，设置该副本的 SCENEWEAVE_DATABASE_URL，在项目环境用 `Database(path).migrate()` 验证 005／006；核对 PRAGMA integrity_check、各表原列、预算、游标、幂等记录与已结束状态，第二次迁移应为空。
+3. 本机实际切换时停止旧服务，保留升级前备份，将新应用指向验证后的副本，再启动后端与配套前端。PENDING 请求按原规则转 UNKNOWN 并暂停，不自动重放。
+4. 需要回退时停止新服务，使用升级前备份与配套旧应用，保留新库供取证；不得直接让旧程序读取新增私聊数据，也不对新库做删除列或历史改写。
+
+本轮已在合成 004 库的 SQLite backup 副本验证逐表原字段保留、005／006 幂等和完整性，并验证 005 失败整体回滚；全新库与旧 003 升级也有独立用例。原试用库和运行服务未改动。全量离线回归 538／前端 53，独立删除生成产物后两次重建一致；真实私聊样本 8 次请求、6 条私聊、5 次回复、6812 tokens，最大单次 1034。详细证据见 `state/reports/M07.md` PC 增量段。
+
+私聊为剧中信息权限，本机操作者仍可读全场，不增加多用户鉴权。人数仍 2～8、正文仍 200 码点、提示仍 32000 码点、公私预算共享；多人私聊、自动冷场开口、摘要／长期记忆未加入。真实长期容量、人工对话质量、浏览器 EventSource 自动重连和异机部署未验证；原 M06 Q1／Q2 保持进行中。

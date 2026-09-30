@@ -90,6 +90,11 @@ class MockModelPort:
                 usage=usage,
             )
 
+        from .action_parser import validate_references
+        failure = validate_references(item, request.references, chat_policy_version=request.chat_policy_version)
+        if failure is not None:
+            return ModelActionResponse(ok=False, failure=failure, raw_content=item.model_dump_json(),
+                prompt_template_id=request.prompt_template_id, requested_model=resolved_model, usage=usage)
         return ModelActionResponse(
             ok=True,
             draft=item,

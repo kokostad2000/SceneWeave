@@ -12,7 +12,7 @@ import { TimelineList } from '../src/components/TimelineList'
 import { AnalysisDrawer } from '../src/components/AnalysisDrawer'
 import { ConfigView } from '../src/views/ConfigView'
 import { ChatView } from '../src/views/ChatView'
-import type { TimelineEntryView } from '../src/api/client'
+import type { EventView, TimelineEntryView } from '../src/api/client'
 
 function jsonResponse(payload: unknown, status = 200) {
   return {
@@ -25,9 +25,10 @@ function jsonResponse(payload: unknown, status = 200) {
 function mockFetch(routes: Record<string, unknown>) {
   // 按**路径精确匹配**：`/api/scenes/scn-1` 是 `/api/scenes/scn-1/events` 的前缀，
   // 子串匹配会把场景详情错给子资源。
-  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-    const path = new URL(String(input), 'http://localhost').pathname
-    const payload = routes[path]
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+    const url = new URL(String(input), 'http://localhost')
+    const path = url.pathname
+    const payload = routes[`${path}${url.search}`] ?? routes[path]
     if (payload === undefined) {
       return jsonResponse({ error: 'not_found', detail: `no mock for ${path}` }, 404)
     }
@@ -79,6 +80,7 @@ const AGENTS = [
     name: '安然',
     order_index: 0,
     snapshot: {
+      public_profile: "",
       source_template_id: 'tpl-1',
       name: '安然',
       persona: '主动热情',
@@ -95,6 +97,7 @@ const AGENTS = [
     name: '许川',
     order_index: 1,
     snapshot: {
+      public_profile: "",
       source_template_id: 'tpl-2',
       name: '许川',
       persona: '表达直接',
@@ -189,7 +192,7 @@ const ENTRIES: TimelineEntryView[] = [
     kind: 'message',
     seq: 1,
     message: {
-      message_id: 'msg-1', scene_id: 'scn-1', seq: 1, actor_id: 'agt-an',
+      visibility: 'PUBLIC', schema_version: 1, message_id: 'msg-1', scene_id: 'scn-1', seq: 1, actor_id: 'agt-an',
       text: '今晚一起吃饭吗？', reply_to_message_id: null, requested_speaker_id: 'agt-xu',
       created_at: '2026-09-26T20:00:00+00:00',
     },
@@ -239,7 +242,7 @@ describe('时间线', () => {
         kind: 'message',
         seq: 1,
         message: {
-          message_id: 'msg-x', scene_id: 'scn-1', seq: 1, actor_id: 'agt-an',
+          visibility: 'PUBLIC', schema_version: 1, message_id: 'msg-x', scene_id: 'scn-1', seq: 1, actor_id: 'agt-an',
           text: '<img src=x onerror="window.__xss=1" />危险内容',
           reply_to_message_id: null, requested_speaker_id: null,
           created_at: '2026-09-26T20:00:00+00:00',
@@ -259,7 +262,7 @@ describe('时间线', () => {
   it('空时间线给出明确提示而不是假内容', () => {
     render(<TimelineList entries={[]} />)
 
-    expect(screen.getByText(/还没有公开信息/)).toBeInTheDocument()
+    expect(screen.getByText(/当前频道还没有信息/)).toBeInTheDocument()
   })
 })
 
@@ -492,7 +495,7 @@ describe('配置页', () => {
           method,
           body: init?.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : null,
         })
-        if (path === '/api/templates') return jsonResponse({ templates: [] })
+        if (path === '/api/templates') return jsonResponse({ templates: AGENTS.map(a => ({ ...a.snapshot, template_id: a.snapshot.source_template_id, created_at: a.created_at, updated_at: a.created_at })) })
         if (path === '/api/scenes/presets') return jsonResponse({ presets: [] })
         if (path === '/api/scenes' && method === 'GET') return jsonResponse({ scenes: [] })
         if (path === '/api/scenes' && method === 'POST') {
@@ -523,6 +526,9 @@ describe('配置页', () => {
     expect(await screen.findByLabelText('角色请求上限')).toHaveValue(200)
     expect(screen.getByLabelText('分析请求上限')).toHaveValue(4)
 
+    const choices = screen.getAllByRole('checkbox')
+    await user.click(choices[0]!)
+    await user.click(choices[1]!)
     await user.click(screen.getByRole('button', { name: '创建会话' }))
 
     await waitFor(() => {
@@ -532,4 +538,118 @@ describe('配置页', () => {
     expect(created?.body?.max_role_requests).toBe(200)
     expect(created?.body?.max_analysis_requests).toBe(4)
   })
+})
+
+
+const PRIVATE_ENTRY: TimelineEntryView = {
+  kind: 'message', seq: 4, author_name: '安然', event: null,
+  message: { message_id: 'secret-id', scene_id: 'scn-1', seq: 4, actor_id: 'agt-an', text: 'SECRET_UI',
+    recipient_id: 'agt-xu', conversation_id: 'ab', visibility: 'PRIVATE', schema_version: 2,
+    created_at: '2026-09-28T00:00:00Z' },
+}
+const PC_CONVERSATION = { conversation_id: 'ab', scene_id: 'scn-1', participant_ids: ['agt-an','agt-xu'], participant_names: ['安然','许川'], last_seq: 4, message_count: 1 }
+
+const PENDING_PUBLIC: EventView = {
+  event: { ...ENTRIES[1]!.event!, event_id: 'pending-public', seq: null, body: 'PUBLIC_PENDING', status: 'ACCEPTED', effective_at: null },
+  status: 'ACCEPTED',
+}
+const PENDING_TARGETED: EventView = {
+  event: { ...ENTRIES[2]!.event!, event_id: 'pending-targeted', seq: null, body: 'TARGETED_PENDING' },
+  status: 'ACCEPTED',
+}
+
+it.each([false, true])('待生效事件遵守公共／私聊／全场频道范围（readOnly=%s）', async (readOnly) => {
+  const fetchMock = mockFetch(chatRoutes({
+    '/api/scenes/scn-1/timeline': { entries: [PRIVATE_ENTRY], conversations: [PC_CONVERSATION] },
+    '/api/scenes/scn-1/events': [PENDING_PUBLIC, PENDING_TARGETED],
+  }))
+  render(<ChatView sceneId="scn-1" readOnly={readOnly} modelConfigured={false} onSelectScene={vi.fn()} />)
+  await screen.findByText(/TARGETED_PENDING/)
+  const messages = () => within(screen.getByRole('region', { name: '频道消息' }))
+  expect(messages().getByText(/PUBLIC_PENDING/)).toBeInTheDocument()
+
+  await userEvent.click(screen.getByRole('button', { name: '公共频道' }))
+  expect(messages().getByText(/PUBLIC_PENDING/)).toBeInTheDocument()
+  expect(messages().queryByText(/TARGETED_PENDING/)).not.toBeInTheDocument()
+
+  await userEvent.click(screen.getByRole('button', { name: '安然 ↔ 许川' }))
+  expect(messages().getByText('SECRET_UI')).toBeInTheDocument()
+  expect(messages().queryByText(/PUBLIC_PENDING|TARGETED_PENDING|待生效事件/)).not.toBeInTheDocument()
+
+  await userEvent.click(screen.getByRole('button', { name: '全场时间线' }))
+  expect(messages().getByText(/PUBLIC_PENDING/)).toBeInTheDocument()
+  expect(messages().getByText(/TARGETED_PENDING/)).toBeInTheDocument()
+  expect(fetchMock.mock.calls.every(c => !c[1] || (c[1] as RequestInit).method !== 'POST')).toBe(true)
+})
+
+it.each(['agt-an', 'agt-xu'])('角色 %s 的待生效事件使用后端授权结果且不串入其他频道', async (viewerId) => {
+  const name = AGENTS.find(agent => agent.agent_id === viewerId)!.name
+  mockFetch(chatRoutes({
+    '/api/scenes/scn-1/timeline': { entries: [PRIVATE_ENTRY], conversations: [PC_CONVERSATION] },
+    '/api/scenes/scn-1/events': [PENDING_PUBLIC, PENDING_TARGETED],
+    [`/api/scenes/scn-1/events?viewer_id=${viewerId}`]: viewerId === 'agt-xu' ? [PENDING_PUBLIC, PENDING_TARGETED] : [PENDING_PUBLIC],
+    [`/api/scenes/scn-1/agents/${viewerId}/viewpoint`]: {
+      scene_id: 'scn-1', agent_id: viewerId, agent_name: name, prompt: '本人可见输入',
+      prompt_template_id: 'role_action@pc.1', cutoff_seq: 4, public_roster: ['安然', '许川'],
+      visible_seq: [1], visible_kinds: ['message'], entries: [],
+    },
+  }))
+  render(<ChatView sceneId="scn-1" readOnly modelConfigured={false} onSelectScene={vi.fn()} />)
+  await screen.findByText(/TARGETED_PENDING/)
+  await userEvent.click(within(screen.getByLabelText('本场角色')).getByRole('button', { name: new RegExp(name) }))
+  await screen.findByText('本人可见输入')
+  const messages = () => within(screen.getByRole('region', { name: '频道消息' }))
+  await waitFor(() => expect(messages().getByText(/PUBLIC_PENDING/)).toBeInTheDocument())
+  expect(Boolean(messages().queryByText(/TARGETED_PENDING/))).toBe(viewerId === 'agt-xu')
+
+  await userEvent.click(screen.getByRole('button', { name: '公共频道' }))
+  expect(messages().getByText(/PUBLIC_PENDING/)).toBeInTheDocument()
+  expect(messages().queryByText(/TARGETED_PENDING/)).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: '安然 ↔ 许川' }))
+  expect(messages().queryByText(/PUBLIC_PENDING|TARGETED_PENDING/)).not.toBeInTheDocument()
+})
+
+it('PC 二级会话、公共频道与全场切换只读取记录，历史刷新复用会话', async () => {
+  const fetchMock = mockFetch(chatRoutes({ '/api/scenes/scn-1/timeline': { entries: [ENTRIES[0], PRIVATE_ENTRY], conversations: [PC_CONVERSATION] } }))
+  const props = { sceneId: 'scn-1', readOnly: true, modelConfigured: false, onSelectScene: vi.fn() }
+  const ui = render(<ChatView {...props} />)
+  expect(await screen.findByText('SECRET_UI')).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: '公共频道' }))
+  expect(screen.queryByText('SECRET_UI')).not.toBeInTheDocument()
+  expect(screen.getByText('今晚一起吃饭吗？')).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: '安然 ↔ 许川' }))
+  expect(screen.getByText('SECRET_UI')).toBeInTheDocument()
+  expect(screen.queryByText('今晚一起吃饭吗？')).not.toBeInTheDocument()
+  expect(screen.getByRole('navigation', { name: '交流频道' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '单步' })).not.toBeInTheDocument()
+  ui.unmount()
+  render(<ChatView {...props} />)
+  expect(await screen.findByText('SECRET_UI')).toBeInTheDocument()
+  expect(screen.queryByText('今晚一起吃饭吗？')).not.toBeInTheDocument()
+  expect(screen.getAllByRole('button', { name: '安然 ↔ 许川' })).toHaveLength(1)
+  expect(fetchMock.mock.calls.every(c => !c[1] || (c[1] as RequestInit).method !== 'POST')).toBe(true)
+})
+
+it('PC 第三方角色采用后端过滤结果，切换清空菜单、正文、行动及选择缓存', async () => {
+  const third = { ...AGENTS[0]!, agent_id: 'agt-third', name: '陈禾', order_index: 2 }
+  const routes = chatRoutes({
+    '/api/scenes/scn-1/timeline': { entries: [PRIVATE_ENTRY], conversations: [PC_CONVERSATION], actions: [{ action_id:'pass', actor_id:'agt-an', status:'SUCCEEDED', draft:{ action:'PASS', text:'' } }] },
+    '/api/scenes/scn-1/timeline?viewer_id=agt-third': { entries: [], conversations: [], actions: [] },
+    '/api/scenes/scn-1/agents/status?viewer_id=agt-third': { agents: [] },
+    '/api/scenes/scn-1/events?viewer_id=agt-third': [],
+    '/api/scenes/scn-1/agents/agt-third/viewpoint': { agent_id:'agt-third', prompt:'安全角色输入', prompt_template_id:'role_action@pc.1', cutoff_seq:0, public_roster:['安然','许川','陈禾'], visible_seq:[], visible_kinds:[] },
+  })
+  routes['/api/scenes/scn-1'] = { ...routes['/api/scenes/scn-1'], agents:[...AGENTS,third] }
+  const fetchMock = mockFetch(routes)
+  render(<ChatView sceneId="scn-1" readOnly modelConfigured={false} onSelectScene={vi.fn()} />)
+  expect(await screen.findByText('SECRET_UI')).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: /陈禾/ }))
+  expect(screen.queryByText('SECRET_UI')).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name:'安然 ↔ 许川' })).not.toBeInTheDocument()
+  expect(await screen.findByText('安全角色输入')).toBeInTheDocument()
+  expect(screen.queryByText('沉默')).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name:'打开行为分析抽屉' })).toBeDisabled()
+  await userEvent.click(screen.getByRole('button', { name:'观察者视角' }))
+  expect(await screen.findByText('SECRET_UI')).toBeInTheDocument()
+  expect(fetchMock.mock.calls.every(c => !c[1] || (c[1] as RequestInit).method !== 'POST')).toBe(true)
 })

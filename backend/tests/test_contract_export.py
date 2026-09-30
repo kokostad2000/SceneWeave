@@ -49,6 +49,7 @@ def test_openapi_action_and_event_shapes_are_published() -> None:
         "text",
         "reply_to_message_id",
         "requested_speaker_id",
+        "recipient_id",
     }
     assert set(schemas["Event"]["properties"]) >= {
         "event_id",

@@ -19,11 +19,14 @@ import {
   type AnalysisRecordView,
   type SceneAgent,
   type TimelineEntryView,
+  type SceneMode,
 } from '../api/client'
+import { modeLabel } from '../lib/modes'
 
 export interface AnalysisDrawerProps {
   readonly open: boolean
   readonly sceneId: string | null
+  readonly mode?: SceneMode
   readonly agents: readonly SceneAgent[]
   readonly entries: readonly TimelineEntryView[]
   readonly onClose: () => void
@@ -41,6 +44,7 @@ const STATUS_LABELS: Record<string, string> = {
 export function AnalysisDrawer({
   open,
   sceneId,
+  mode = 'simulation',
   agents,
   entries,
   onClose,
@@ -59,7 +63,7 @@ export function AnalysisDrawer({
   const publicEntries = useMemo(
     () =>
       entries.filter((entry) => {
-        if (entry.kind === 'message') return true
+        if (entry.kind === 'message') return Boolean(entry.message) && entry.message?.visibility !== 'PRIVATE'
         return entry.event?.visibility === 'ALL' && entry.event?.status === 'EFFECTIVE'
       }),
     [entries],
@@ -68,17 +72,26 @@ export function AnalysisDrawer({
   useEffect(() => {
     if (!open || sceneId === null) return
     const controller = new AbortController()
+    let active = true
+    setCapability(null)
+    setRecords([])
+    setSelected([])
+    setAgentId('')
+    setOperationsTotal(0)
+    setProviderAttempts(0)
+    setError(null)
     fetchAnalysisCapability(sceneId, controller.signal)
-      .then((value) => setCapability(value.capability))
+      .then((value) => { if (active) setCapability(value.capability) })
       .catch(() => undefined)
     listAnalyses(sceneId, controller.signal)
       .then((value) => {
+        if (!active) return
         setRecords(value.records)
         setOperationsTotal(value.operations_total)
         setProviderAttempts(value.provider_attempts_total)
       })
       .catch(() => undefined)
-    return () => controller.abort()
+    return () => { active = false; controller.abort() }
   }, [open, sceneId])
 
   const preview = useMemo(
@@ -135,6 +148,9 @@ export function AnalysisDrawer({
         </button>
       </header>
 
+      <p>{capability?.description ?? '基于选中的公开文本解释虚构角色行为；手动调用，只读观察。'}</p>
+      <p className="hint">当前模式：{modeLabel[mode]}。推荐用于{(capability?.recommended_modes ?? ['simulation']).map(value => modeLabel[value]).join('、')}；两种模式均可手动使用。</p>
+
       <p className="hint">
         分析操作数 {operationsTotal}｜实际模型请求数 {providerAttempts}
         （两者分开计数：被本地规则拦截或能力关闭时不会发起请求）
@@ -164,6 +180,7 @@ export function AnalysisDrawer({
 
       <fieldset className="drawer__materials">
         <legend>选择公开材料（默认不含私有背景与定向事件）</legend>
+        <p className="hint">行为描述和上下文各最多 4000 码点（含来源标记）；超过时请缩小选择。</p>
         {publicEntries.length === 0 ? (
           <p className="hint">还没有可选的公开材料。</p>
         ) : (

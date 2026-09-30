@@ -7,10 +7,12 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, field_validator, model_validator
 
-from .enums import PauseReason, RunState
+from .enums import MessageVisibility, PauseReason, RunState, SceneMode
+from .mode import SimulationConfig, DiscussionConfig, DiscussionParticipantConfig, resolve_mode_config
 from .ids import AgentId, MessageId, SceneId, TemplateId
 from .limits import (
     DEFAULT_AGENTS_PER_SCENE,
@@ -39,18 +41,40 @@ def _codepoints(value: str) -> int:
     return codepoint_length(value)
 
 
-class AgentProfileFields(BaseModel):
-    """模板保存的五项内容（PRD 3.2）。长度按 Unicode 码点校验。"""
+def _configuration_version(value):
+    if type(value) is not int:
+        raise ValueError("配置版本必须是整数 1 或 2")
+    return value
+
+
+ConfigurationVersion = Annotated[Literal[1, 2], BeforeValidator(_configuration_version)]
+ChatPolicyVersion = Annotated[Literal[1, 2], BeforeValidator(_configuration_version)]
+
+
+class SceneRoleProfile(BaseModel):
+    """本场行为资料；未填写保持为空，不回退到人物目录。"""
+
+    model_config = ConfigDict(extra="forbid")
+    persona: str = Field(default="", max_length=MAX_PERSONA_CODEPOINTS)
+    speech_style: str = Field(default="", max_length=MAX_SPEECH_STYLE_CODEPOINTS)
+    initial_goal: str = Field(default="", max_length=MAX_INITIAL_GOAL_CODEPOINTS)
+    private_background: str = Field(default="", max_length=MAX_PRIVATE_BACKGROUND_CODEPOINTS)
+    public_profile: str = Field(default="", max_length=MAX_PERSONA_CODEPOINTS)
+
+    @field_validator("persona", "speech_style", "initial_goal", "private_background", "public_profile", mode="before")
+    @classmethod
+    def _strip_profile(cls, value: object) -> object:
+        return _strip(value)
+
+
+class AgentProfileFields(SceneRoleProfile):
+    """人物名称与旧版兼容资料；新创建流程只复用名称。"""
 
     model_config = ConfigDict(extra="forbid")
 
     name: str
-    persona: str
-    speech_style: str
-    initial_goal: str
-    private_background: str
 
-    @field_validator("name", "persona", "speech_style", "initial_goal", "private_background", mode="before")
+    @field_validator("name", "persona", "speech_style", "initial_goal", "private_background", "public_profile", mode="before")
     @classmethod
     def _strip_fields(cls, value: object) -> object:
         return _strip(value)
@@ -106,6 +130,7 @@ class SceneAgent(BaseModel):
     name: str
     order_index: int = Field(ge=0)
     snapshot: AgentSnapshot
+    discussion_config: DiscussionParticipantConfig | None = None
     created_at: datetime
 
     @field_validator("name", mode="before")
@@ -123,10 +148,10 @@ class SceneAgent(BaseModel):
 
 
 class Message(BaseModel):
-    """已提交的公开角色发言（PRD 4.1、4.2）。
+    """已提交的公开或一对一私聊角色消息（PRD 4.1、4.2）。
 
     ``PASS`` 不形成聊天气泡，但保存行动结果并推进已处理位置——因此这里只
-    承载 SPEAK 产生的消息。
+    承载 SPEAK／PRIVATE 产生的消息。
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -138,7 +163,22 @@ class Message(BaseModel):
     text: str
     reply_to_message_id: MessageId | None = None
     requested_speaker_id: AgentId | None = None
+    visibility: MessageVisibility = MessageVisibility.PUBLIC
+    recipient_id: AgentId | None = None
+    conversation_id: str | None = None
+    schema_version: int = 1
     created_at: datetime
+
+    @model_validator(mode="after")
+    def _check_channel(self) -> Message:
+        if self.visibility is MessageVisibility.PRIVATE:
+            if self.recipient_id is None or self.recipient_id == self.actor_id or not self.conversation_id:
+                raise ValueError("私聊必须指定另一收件人及会话")
+            if self.requested_speaker_id is not None:
+                raise ValueError("私聊不得有公开点名")
+        elif self.recipient_id is not None or self.conversation_id is not None:
+            raise ValueError("公开消息不得含私聊字段")
+        return self
 
 
 class Budget(BaseModel):
@@ -184,6 +224,10 @@ class Scene(BaseModel):
     scene_id: SceneId
     title: str = Field(min_length=1, max_length=120)
     background: str
+    mode: SceneMode = SceneMode.SIMULATION
+    mode_config: SimulationConfig | DiscussionConfig | None = None
+    configuration_version: ConfigurationVersion = 1
+    chat_policy_version: ChatPolicyVersion = 1
     status: RunState = RunState.READY
     pause_reason: PauseReason | None = None
     budget: Budget
@@ -199,6 +243,8 @@ class Scene(BaseModel):
 
     @model_validator(mode="after")
     def _check(self) -> Scene:
+        self.mode_config = resolve_mode_config(self.mode, self.mode_config, self.background)
+        self.background = self.mode_config.background_text()
         if _codepoints(self.background) > MAX_SCENE_BACKGROUND_CODEPOINTS:
             raise ValueError(
                 f"场景背景不能超过 {MAX_SCENE_BACKGROUND_CODEPOINTS} 个 Unicode 码点，"
