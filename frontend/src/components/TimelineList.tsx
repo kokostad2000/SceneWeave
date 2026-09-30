@@ -13,12 +13,13 @@ import { EVENT_VISIBILITY_LABELS } from '../lib/labels'
 export interface TimelineListProps {
   readonly entries: readonly TimelineEntryView[]
   readonly requestedAgentName?: string | null
+  readonly names?: ReadonlyMap<string, string>
   readonly pendingEventIds?: readonly string[]
 }
 
-export function TimelineList({ entries, requestedAgentName, pendingEventIds = [] }: TimelineListProps) {
+export function TimelineList({ entries, requestedAgentName, pendingEventIds = [], names = new Map() }: TimelineListProps) {
   if (entries.length === 0) {
-    return <p className="hint">还没有公开信息。使用下方运行控制开始，或插入一个事件。</p>
+    return <p className="hint">当前频道还没有信息。使用下方运行控制开始，或插入一个事件。</p>
   }
 
   return (
@@ -34,8 +35,9 @@ export function TimelineList({ entries, requestedAgentName, pendingEventIds = []
               <div className="timeline__meta">
                 <span className="timeline__seq">#{message.seq}</span>
                 <span className="timeline__author">{entry.author_name ?? message.actor_id}</span>
+                <span className="tag">{message.visibility === 'PRIVATE' ? `私聊 → ${names.get(message.recipient_id ?? '') ?? '收件人'} · 仅双方可见` : '公共频道'}</span>
                 {message.reply_to_message_id ? (
-                  <span className="tag tag--reply">回复某条发言</span>
+                  <span className="tag tag--reply">回复{entries.find(e => e.message?.message_id === message.reply_to_message_id)?.author_name ?? '某条发言'}</span>
                 ) : null}
                 {highlighted ? <span className="tag tag--requested">点名希望接话</span> : null}
               </div>

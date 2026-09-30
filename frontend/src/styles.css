@@ -61,6 +61,8 @@ body {
 }
 
 .facts dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
   margin: 0;
 }
 
@@ -304,3 +306,38 @@ textarea { min-height: 4rem; }
   border-top: 1px solid #262c38;
   padding-top: 0.75rem;
 }
+
+/* 公共频道、双向会话及全场共用控制 */
+.chat__body { grid-template-columns: 12rem minmax(0, 1fr) 16rem; }
+.chat__body > * { min-width: 0; }
+.conversation-menu { align-self: flex-start; box-sizing: border-box; max-height: clamp(20rem, 60vh, 40rem); }
+.chat__messages {
+  height: clamp(20rem, 60vh, 40rem);
+  padding-right: 0.5rem;
+}
+.chat__messages,
+.conversation-menu {
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: #556078 #161a22;
+}
+.chat__messages:focus-visible { outline: 2px solid #5578ae; outline-offset: 3px; }
+.conversation-menu button { display: block; width: 100%; margin: 6px 0; text-align: left; overflow-wrap: anywhere; }
+.conversation-menu button[aria-current="page"] { border-color: var(--accent, #5578ae); background: #24334b; }
+.conversation-menu ul { padding-left: 12px; list-style: none; }
+.perspective-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.role-card__state small { display: block; font-size: 11px; }
+@media (max-width: 900px) {
+  .chat__body { grid-template-columns: minmax(0, 1fr); }
+  .conversation-menu { max-height: 14rem; }
+}
+
+.mode-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.mode-choices button { display: flex; flex-direction: column; gap: .6rem; text-align: left; padding: 1.25rem; min-width: 0; }
+.mode-choices button[aria-pressed="true"] { border-color: #7799ca; background: #24334b; }
+.mode-choices span { font-size: .9rem; line-height: 1.6; }
+.participant-fields { padding: .6rem 1rem; border-left: 2px solid #465670; }
+.snapshot-list details p { overflow-wrap: anywhere; white-space: pre-wrap; }
+@media (max-width: 600px) { .mode-choices { grid-template-columns: minmax(0, 1fr); } }

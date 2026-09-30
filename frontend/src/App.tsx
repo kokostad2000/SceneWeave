@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { fetchHealth, listScenes, type SceneSummaryView } from './api/client'
 import { contractSummary } from './api/contracts'
+import { readView, saveView } from './lib/viewState'
 import { ChatView } from './views/ChatView'
 import { ConfigView } from './views/ConfigView'
 import { HistoryView } from './views/HistoryView'
@@ -21,11 +22,13 @@ const TABS: { key: Tab; label: string }[] = [
  * 分析抽屉）、历史页（聊天页只读模式）。视图切换与历史查看都**不调用模型**。
  */
 export function App() {
-  const [tab, setTab] = useState<Tab>('config')
-  const [sceneId, setSceneId] = useState<string | null>(null)
+  const [tab, setTab] = useState<Tab>(() => { const saved = readView<string>('tab', 'config'); return ['config','chat','history'].includes(saved) ? saved as Tab : 'config' })
+  const [sceneId, setSceneId] = useState<string | null>(() => { const saved = readView<unknown>('scene', null); return typeof saved === 'string' ? saved : null })
   const [scenes, setScenes] = useState<SceneSummaryView[]>([])
   const [modelConfigured, setModelConfigured] = useState<boolean | null>(null)
   const [backendError, setBackendError] = useState<string | null>(null)
+
+  useEffect(() => { saveView('tab', tab); saveView('scene', sceneId) }, [tab, sceneId])
 
   const refreshScenes = useCallback(async () => {
     try {
@@ -57,7 +60,7 @@ export function App() {
     <div className="page">
       <header className="page__header">
         <h1>SceneWeave</h1>
-        <p className="page__subtitle">角色互动沙盒</p>
+        <p className="page__subtitle">情境模拟 · 议题讨论</p>
         <nav className="tabs" aria-label="页面">
           {TABS.map((item) => (
             <button
@@ -100,10 +103,10 @@ export function App() {
               </select>
             </label>
           ) : null}
-          <ChatView sceneId={sceneId} modelConfigured={modelConfigured} onSelectScene={openScene} />
+          <ChatView key={sceneId} sceneId={sceneId} modelConfigured={modelConfigured} onSelectScene={openScene} />
         </>
       ) : (
-        <HistoryView sceneId={sceneId} modelConfigured={modelConfigured} onSelectScene={setSceneId} />
+        <HistoryView key={sceneId} sceneId={sceneId} modelConfigured={modelConfigured} onSelectScene={setSceneId} />
       )}
 
       <footer className="page__footer">

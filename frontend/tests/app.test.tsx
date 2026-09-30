@@ -19,7 +19,7 @@ const HEALTH = {
   status: 'ok',
   app_name: 'SceneWeave',
   app_version: '0.1.0',
-  contract_version: 'm00.1',
+  contract_version: 'sr.p1.1',
   run_state: 'READY',
   analysis_enabled: false,
   model_configured: false,
@@ -97,8 +97,19 @@ describe('应用外壳', () => {
     mockBackend()
     render(<App />)
 
-    expect(await screen.findByText(/契约版本 m00.1/)).toBeInTheDocument()
+    expect(await screen.findByText(/契约版本 fc.p1.1/)).toBeInTheDocument()
     expect(screen.getByText(/行为分析只读取选中的公开材料/)).toBeInTheDocument()
     expect(screen.getByText(/界面中不存在冒充真实模型输出的模拟结果/)).toBeInTheDocument()
   })
+})
+
+
+it('PC 刷新恢复已保存的页面选择，视图恢复不发送控制命令', async () => {
+  sessionStorage.setItem('sceneweave:tab', JSON.stringify('history'))
+  const fetchMock = mockBackend()
+  render(<App />)
+  expect(screen.getByRole('button', { name: '历史' })).toHaveClass('tab--active')
+  expect(screen.getByText('还没有打开会话')).toBeInTheDocument()
+  await waitFor(() => expect(fetchMock).toHaveBeenCalled())
+  expect(fetchMock.mock.calls.every(c => !String(c[0]).includes('/commands'))).toBe(true)
 })

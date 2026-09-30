@@ -15,8 +15,12 @@ export type ApiErrorBody = components['schemas']['ApiError']
 
 export type AgentTemplate = components['schemas']['AgentTemplate']
 export type AgentSnapshot = components['schemas']['AgentSnapshot']
+export type SceneRoleProfile = components['schemas']['SceneRoleProfile']
 export type SceneAgent = components['schemas']['SceneAgent']
 export type Scene = components['schemas']['Scene']
+export type SceneMode = components['schemas']['SceneMode']
+export type DiscussionParticipantConfig = components['schemas']['DiscussionParticipantConfig']
+export type FactStatisticsView = components['schemas']['FactStatisticsView']
 export type SceneDetailView = components['schemas']['SceneDetailView']
 export type SceneListView = components['schemas']['SceneListView']
 export type SceneSummaryView = components['schemas']['SceneSummaryView']
@@ -24,6 +28,9 @@ export type TemplateListView = components['schemas']['TemplateListView']
 export type PresetListView = components['schemas']['PresetListView']
 export type PresetSummaryView = components['schemas']['PresetSummaryView']
 export type CommandAck = components['schemas']['CommandAck']
+export type ConversationView = components['schemas']['ConversationView']
+export type ActionDraft = components['schemas']['ActionDraft']
+export type ActionHistoryView = components['schemas']['ActionHistoryView']
 export type TimelineView = components['schemas']['TimelineView']
 export type TimelineEntryView = components['schemas']['TimelineEntryView']
 export type RunStateView = components['schemas']['RunStateView']
@@ -115,7 +122,7 @@ export function listTemplates(signal?: AbortSignal): Promise<TemplateListView> {
 }
 
 export function createTemplate(
-  payload: components['schemas']['TemplateCreateRequest'],
+  payload: components['schemas']['TemplateCreateRequest'] | components['schemas']['IdentityCreateRequest'],
 ): Promise<AgentTemplate> {
   return requestJson<AgentTemplate>('/api/templates', jsonBody(payload))
 }
@@ -138,8 +145,8 @@ export function deleteTemplate(templateId: string): Promise<void> {
   return requestJson<void>(`/api/templates/${templateId}`, { method: 'DELETE' })
 }
 
-export function listScenes(signal?: AbortSignal): Promise<SceneListView> {
-  return requestJson<SceneListView>('/api/scenes', {}, signal)
+export function listScenes(signal?: AbortSignal, mode?: SceneMode): Promise<SceneListView> {
+  return requestJson<SceneListView>(`/api/scenes${mode ? `?mode=${mode}` : ''}`, {}, signal)
 }
 
 export function listPresets(signal?: AbortSignal): Promise<PresetListView> {
@@ -157,7 +164,11 @@ export function createScene(
 }
 
 export function createPresetScene(presetKey = 'roommates'): Promise<SceneDetailView> {
-  return requestJson<SceneDetailView>('/api/scenes/preset', jsonBody({ preset_key: presetKey }))
+  return requestJson<SceneDetailView>('/api/scenes/preset', jsonBody({ preset_key: presetKey, configuration_version: 2, chat_policy_version: 2 }))
+}
+
+export function updateAgentProfile(sceneId: string, agentId: string, payload: components['schemas']['AgentProfileUpdateRequest']): Promise<SceneAgent> {
+  return requestJson<SceneAgent>(`/api/scenes/${sceneId}/agents/${agentId}/profile`, jsonBody(payload, 'PATCH'))
 }
 
 export function addAgent(
@@ -203,20 +214,24 @@ export function injectEvent(
   return requestJson<CommandAck>(`/api/scenes/${sceneId}/events`, jsonBody(payload))
 }
 
-export function fetchTimeline(sceneId: string, signal?: AbortSignal): Promise<TimelineView> {
-  return requestJson<TimelineView>(`/api/scenes/${sceneId}/timeline`, {}, signal)
+export function fetchTimeline(sceneId: string, signal?: AbortSignal, viewerId?: string | null): Promise<TimelineView> {
+  return requestJson<TimelineView>(`/api/scenes/${sceneId}/timeline${viewerId ? `?viewer_id=${encodeURIComponent(viewerId)}` : ''}`, {}, signal)
 }
 
 export function fetchRunState(sceneId: string, signal?: AbortSignal): Promise<RunStateView> {
   return requestJson<RunStateView>(`/api/scenes/${sceneId}/state`, {}, signal)
 }
 
-export function fetchEvents(sceneId: string, signal?: AbortSignal): Promise<EventView[]> {
-  return requestJson<EventView[]>(`/api/scenes/${sceneId}/events`, {}, signal)
+export function fetchEvents(sceneId: string, signal?: AbortSignal, viewerId?: string | null): Promise<EventView[]> {
+  return requestJson<EventView[]>(`/api/scenes/${sceneId}/events${viewerId ? `?viewer_id=${encodeURIComponent(viewerId)}` : ''}`, {}, signal)
 }
 
 export function fetchSummary(sceneId: string, signal?: AbortSignal): Promise<ScenarioSummaryView> {
   return requestJson<ScenarioSummaryView>(`/api/scenes/${sceneId}/summary`, {}, signal)
+}
+
+export function fetchStatistics(sceneId: string, signal?: AbortSignal, viewerId?: string | null): Promise<FactStatisticsView> {
+  return requestJson<FactStatisticsView>(`/api/scenes/${sceneId}/statistics${viewerId ? `?viewer_id=${encodeURIComponent(viewerId)}` : ''}`, {}, signal)
 }
 
 export function fetchViewpoint(
@@ -235,8 +250,9 @@ export function fetchViewpoint(
 export function fetchAgentStatus(
   sceneId: string,
   signal?: AbortSignal,
+  viewerId?: string | null,
 ): Promise<AgentStatusListView> {
-  return requestJson<AgentStatusListView>(`/api/scenes/${sceneId}/agents/status`, {}, signal)
+  return requestJson<AgentStatusListView>(`/api/scenes/${sceneId}/agents/status${viewerId ? `?viewer_id=${encodeURIComponent(viewerId)}` : ''}`, {}, signal)
 }
 
 // --- M06 行为分析（只读观察） ---

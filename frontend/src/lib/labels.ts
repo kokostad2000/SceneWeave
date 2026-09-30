@@ -18,6 +18,7 @@ export const RUN_STATE_LABELS: Record<RunState, string> = {
 
 export const PAUSE_REASON_LABELS: Record<PauseReason, string> = {
   NO_NEW_INFORMATION: '无新信息（不是会话结束）',
+  COLLECTIVE_SILENCE: '所有角色本轮均未发言',
   MANUAL: '人工暂停',
   PROVIDER_ERROR: '接口错误',
   CONTEXT_LIMIT: '上下文超限',
