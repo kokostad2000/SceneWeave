@@ -7,6 +7,9 @@
 from __future__ import annotations
 
 import sqlite3
+import json
+
+from ..contracts.mode import DiscussionParticipantConfig
 from collections.abc import Sequence
 from datetime import datetime
 
@@ -16,12 +19,12 @@ from .database import Database
 _SCENE_COLUMNS = (
     "scene_id, title, background, status, pause_reason, schema_version,"
     " max_role_requests, max_analysis_requests, budget_locked_at, created_at,"
-    " started_at, ended_at"
+    " started_at, ended_at, mode, mode_config_json, configuration_version, chat_policy_version"
 )
 _AGENT_COLUMNS = (
     "agent_id, scene_id, name, order_index, source_template_id, snapshot_name,"
     " snapshot_persona, snapshot_speech_style, snapshot_initial_goal,"
-    " snapshot_private_background, snapshot_captured_at, created_at"
+    " snapshot_private_background, snapshot_captured_at, created_at, snapshot_public_profile, discussion_config_json"
 )
 
 
@@ -34,6 +37,10 @@ def _to_scene(row: sqlite3.Row) -> Scene:
         scene_id=row["scene_id"],
         title=row["title"],
         background=row["background"],
+        mode=row["mode"],
+        configuration_version=row["configuration_version"],
+        chat_policy_version=row["chat_policy_version"],
+        mode_config=json.loads(row["mode_config_json"]) if row["mode_config_json"] else None,
         status=RunState(row["status"]),
         pause_reason=PauseReason(row["pause_reason"]) if row["pause_reason"] else None,
         budget=Budget(
@@ -54,6 +61,7 @@ def _to_agent(row: sqlite3.Row) -> SceneAgent:
         scene_id=row["scene_id"],
         name=row["name"],
         order_index=int(row["order_index"]),
+        discussion_config=DiscussionParticipantConfig.model_validate_json(row["discussion_config_json"]) if row["discussion_config_json"] else None,
         snapshot=AgentSnapshot(
             source_template_id=row["source_template_id"],
             name=row["snapshot_name"],
@@ -61,6 +69,7 @@ def _to_agent(row: sqlite3.Row) -> SceneAgent:
             speech_style=row["snapshot_speech_style"],
             initial_goal=row["snapshot_initial_goal"],
             private_background=row["snapshot_private_background"],
+            public_profile=row["snapshot_public_profile"],
             captured_at=datetime.fromisoformat(row["snapshot_captured_at"]),
         ),
         created_at=datetime.fromisoformat(row["created_at"]),
@@ -93,8 +102,8 @@ class SceneRepository:
                 "INSERT INTO scenes"
                 " (scene_id, title, background, status, pause_reason, schema_version,"
                 "  max_role_requests, max_analysis_requests, budget_locked_at, preset_key,"
-                "  created_at, started_at, ended_at)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "  created_at, started_at, ended_at, mode, mode_config_json, configuration_version, chat_policy_version)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     scene.scene_id,
                     scene.title,
@@ -109,6 +118,10 @@ class SceneRepository:
                     scene.created_at.isoformat(),
                     scene.started_at.isoformat() if scene.started_at else None,
                     scene.ended_at.isoformat() if scene.ended_at else None,
+                    scene.mode.value,
+                    scene.mode_config.model_dump_json(),
+                    scene.configuration_version,
+                    scene.chat_policy_version,
                 ),
             )
             for agent in agents:
@@ -118,6 +131,22 @@ class SceneRepository:
         with self._db.transaction() as conn:
             self._insert_agent(conn, agent)
 
+    def update_agent_profile(self, agent: SceneAgent) -> None:
+        p = agent.snapshot
+        with self._db.transaction() as conn:
+            locked = conn.execute("SELECT budget_locked_at, status FROM scenes WHERE scene_id=?", (agent.scene_id,)).fetchone()
+            if locked is None or locked[0] is not None or locked[1] != "READY":
+                from ..domain.errors import SceneLockedError
+                raise SceneLockedError("场景已开始，不能修改本场设定")
+            conn.execute(
+                "UPDATE scene_agents SET snapshot_persona=?, snapshot_speech_style=?, "
+                "snapshot_initial_goal=?, snapshot_private_background=?, snapshot_public_profile=?, "
+                "snapshot_captured_at=?, discussion_config_json=? WHERE scene_id=? AND agent_id=?",
+                (p.persona,p.speech_style,p.initial_goal,p.private_background,p.public_profile,
+                 p.captured_at.isoformat(),agent.discussion_config.model_dump_json() if agent.discussion_config else None,
+                 agent.scene_id,agent.agent_id),
+            )
+
     @staticmethod
     def _insert_agent(conn: sqlite3.Connection, agent: SceneAgent) -> None:
         snapshot = agent.snapshot
@@ -125,8 +154,8 @@ class SceneRepository:
             "INSERT INTO scene_agents"
             " (agent_id, scene_id, name, order_index, source_template_id, snapshot_name,"
             "  snapshot_persona, snapshot_speech_style, snapshot_initial_goal,"
-            "  snapshot_private_background, snapshot_captured_at, created_at)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "  snapshot_private_background, snapshot_captured_at, created_at, snapshot_public_profile, discussion_config_json)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 agent.agent_id,
                 agent.scene_id,
@@ -140,6 +169,8 @@ class SceneRepository:
                 snapshot.private_background,
                 snapshot.captured_at.isoformat(),
                 agent.created_at.isoformat(),
+                snapshot.public_profile,
+                agent.discussion_config.model_dump_json() if agent.discussion_config else None,
             ),
         )
 
@@ -179,10 +210,13 @@ class SceneRepository:
             ).fetchone()
         return _to_scene(row) if row is not None else None
 
-    def list_scenes(self) -> list[Scene]:
+    def list_scenes(self, mode=None) -> list[Scene]:
         with self._db.connection() as conn:
             rows = conn.execute(
-                f"SELECT {_SCENE_COLUMNS} FROM scenes ORDER BY created_at DESC, scene_id ASC"
+                f"SELECT {_SCENE_COLUMNS} FROM scenes"
+                + (" WHERE mode = ?" if mode is not None else "")
+                + " ORDER BY created_at DESC, scene_id ASC",
+                (mode.value,) if mode is not None else (),
             ).fetchall()
         return [_to_scene(row) for row in rows]
 

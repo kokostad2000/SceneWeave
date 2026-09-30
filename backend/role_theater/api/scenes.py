@@ -8,10 +8,11 @@ from __future__ import annotations
 
 from fastapi import APIRouter, status
 
-from ..contracts import SceneAgent
+from ..contracts import SceneAgent, SceneMode
 from ..contracts.api import (
     AgentCreateRequest,
     AgentRenameRequest,
+    AgentProfileUpdateRequest,
     PresetListView,
     PresetSceneCreateRequest,
     PresetSummaryView,
@@ -57,8 +58,12 @@ def create_scene(payload: SceneCreateRequest, service: SceneServiceDep) -> Scene
     detail = service.create(
         title=payload.title,
         background=payload.background,
+        mode=payload.mode,
+        mode_config=payload.mode_config,
+        configuration_version=payload.configuration_version,
+        chat_policy_version=payload.chat_policy_version,
         agent_specs=[
-            AgentSpec(template_id=spec.template_id, name=spec.name) for spec in payload.agents
+            AgentSpec(template_id=spec.template_id, name=spec.name, discussion_config=spec.discussion_config, role_profile=spec.role_profile) for spec in payload.agents
         ],
         max_role_requests=payload.max_role_requests,
         max_analysis_requests=payload.max_analysis_requests,
@@ -73,22 +78,23 @@ def create_preset_scene(
 ) -> SceneDetailView:
     """用预置“三个室友的客厅”创建会话（PRD 3.1）。"""
 
-    return _detail_view(service.create_preset(payload.preset_key))
+    return _detail_view(service.create_preset(payload.preset_key, configuration_version=payload.configuration_version, chat_policy_version=payload.chat_policy_version))
 
 
 @router.get("", response_model=SceneListView)
-def list_scenes(service: SceneServiceDep) -> SceneListView:
+def list_scenes(service: SceneServiceDep, mode: SceneMode | None = None) -> SceneListView:
     return SceneListView(
         scenes=[
             SceneSummaryView(
                 scene_id=summary.scene.scene_id,
                 title=summary.scene.title,
+                mode=summary.scene.mode,
                 status=summary.scene.status.value,
                 agent_count=summary.agent_count,
                 budget_locked=summary.scene.budget.locked_at is not None,
                 created_at=summary.scene.created_at.isoformat(),
             )
-            for summary in service.list_summaries()
+            for summary in service.list_summaries(mode)
         ]
     )
 
@@ -108,7 +114,11 @@ def add_agent(
     payload: AgentCreateRequest,
     service: SceneServiceDep,
 ) -> SceneAgent:
-    return service.add_agent(scene_id, template_id=payload.template_id, name=payload.name)
+    return service.add_agent(
+        scene_id, template_id=payload.template_id, name=payload.name,
+        discussion_config=payload.discussion_config, role_profile=payload.role_profile,
+        role_profile_provided="role_profile" in payload.model_fields_set,
+    )
 
 
 @router.patch("/{scene_id}/agents/{agent_id}", response_model=SceneAgent)
@@ -124,3 +134,11 @@ def rename_agent(
 @router.delete("/{scene_id}/agents/{agent_id}", status_code=status.HTTP_204_NO_CONTENT)
 def remove_agent(scene_id: str, agent_id: str, service: SceneServiceDep) -> None:
     service.remove_agent(scene_id, agent_id)
+
+
+@router.patch("/{scene_id}/agents/{agent_id}/profile", response_model=SceneAgent)
+def update_agent_profile(scene_id: str, agent_id: str, payload: AgentProfileUpdateRequest,
+                         service: SceneServiceDep) -> SceneAgent:
+    return service.update_agent_profile(scene_id, agent_id, payload.role_profile,
+                                       discussion_config=payload.discussion_config,
+                                       replace_discussion="discussion_config" in payload.model_fields_set)

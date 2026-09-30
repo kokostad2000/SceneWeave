@@ -82,10 +82,12 @@ class TemplateService:
         speech_style: str | None = None,
         initial_goal: str | None = None,
         private_background: str | None = None,
+        public_profile: str | None = None,
     ) -> AgentTemplate:
         current = self.get(template_id)
 
         merged = AgentProfileFields(
+            public_profile=public_profile if public_profile is not None else current.public_profile,
             name=name if name is not None else current.name,
             persona=persona if persona is not None else current.persona,
             speech_style=speech_style if speech_style is not None else current.speech_style,
@@ -116,6 +118,7 @@ class TemplateService:
             self.require_unique_name(new_name)
 
         profile = AgentProfileFields(
+            public_profile=source.public_profile,
             name=resolved_name,
             persona=source.persona,
             speech_style=source.speech_style,
@@ -130,7 +133,7 @@ class TemplateService:
 
     # --- 预置模板 ---
 
-    def ensure_preset_templates(self, preset_key: str) -> dict[str, AgentTemplate]:
+    def ensure_preset_templates(self, preset_key: str, *, identity_only: bool = False) -> dict[str, AgentTemplate]:
         """按需补齐**指定预置场景**的模板，返回 名称 → 模板 的映射。
 
         预置模板被移除后仍可通过预置场景重新获得，保证预置流程可重复使用；
@@ -147,7 +150,7 @@ class TemplateService:
                     template_id=self._id_factory(),
                     created_at=now,
                     updated_at=now,
-                    **preset.to_profile().model_dump(),
+                    **(AgentProfileFields(name=preset.name) if identity_only else preset.to_profile()).model_dump(),
                 )
                 self._repo.insert(existing, is_preset=True)
             resolved[preset.name] = existing
